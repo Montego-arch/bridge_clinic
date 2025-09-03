@@ -27,6 +27,7 @@ app_license = "mit"
 # include js, css files in header of desk.html
 # app_include_css = "/assets/bridge_clinic/css/bridge_clinic.css"
 # app_include_js = "/assets/bridge_clinic/js/bridge_clinic.js"
+app_include_js = "/assets/bridge_clinic/js/expense_claim.js"
 
 # include js, css files in header of web template
 # web_include_css = "/assets/bridge_clinic/css/bridge_clinic.css"
@@ -129,9 +130,10 @@ app_license = "mit"
 # ---------------
 # Override standard doctype classes
 
-# override_doctype_class = {
-# 	"ToDo": "custom_app.overrides.CustomToDo"
-# }
+override_doctype_class = {
+	# "ToDo": "custom_app.overrides.CustomToDo",
+	"Payment Request": "bridge_clinic.overrides.payment_request.CustomPaymentRequest"
+}
 
 # Document Events
 # ---------------
@@ -176,6 +178,8 @@ doc_events = {
 
 # Testing
 # -------
+# run this when app loads
+
 
 # before_tests = "bridge_clinic.install.before_tests"
 
@@ -185,6 +189,8 @@ doc_events = {
 # override_whitelisted_methods = {
 # 	"frappe.desk.doctype.event.event.get_events": "bridge_clinic.event.get_events"
 # }
+
+
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
