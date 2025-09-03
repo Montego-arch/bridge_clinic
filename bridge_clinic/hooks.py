@@ -144,6 +144,14 @@ app_license = "mit"
 # 		"on_trash": "method"
 # 	}
 # }
+doc_events = {
+    "Expense Claim": {
+        "on_submit": "bridge_clinic.api.create_payment_request_for_expense"
+    },
+    "Payment Entry": {
+        "on_submit": "bridge_clinic.api.notify_expense_payment_made"
+    },
+}
 
 # Scheduled Tasks
 # ---------------
