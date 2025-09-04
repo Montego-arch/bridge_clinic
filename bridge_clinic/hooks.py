@@ -156,9 +156,10 @@ doc_events = {
     "Payment Entry": {
         "on_submit": "bridge_clinic.api.notify_expense_payment_made"
     },
-	#     "Material Request": {
-    #     "on_submit": "bridge_clinic.api.create_rfq_from_material_request"
-    # },
+	    "Material Request": {
+		"validate": "bridge_clinic.api.fill_suppliers_in_material_request",
+        "on_submit": "bridge_clinic.api.create_rfq_from_material_request"
+    },
 	    "Request for Quotation": {
         "on_submit": "bridge_clinic.api.create_po_from_rfq"
     },
@@ -167,7 +168,7 @@ doc_events = {
     },
 	    "Purchase Invoice": {
         "on_submit": "bridge_clinic.api.create_payment_request_from_pi"
-    },
+    }
 }
 
 # Scheduled Tasks
@@ -271,3 +272,6 @@ doc_events = {
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
 
+fixtures = [
+	{"dt": "Custom Field", "filters": [["module", "=", "Bridge Clinic"]]}
+]

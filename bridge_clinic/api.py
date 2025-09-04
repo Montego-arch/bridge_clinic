@@ -41,7 +41,42 @@ def create_payment_request_for_expense(doc, method):
     except Exception:
         frappe.log_error(frappe.get_traceback(), "Expense Claim Payment Request Creation Failed")
         raise
+    
 
+
+def fill_suppliers_in_material_request(doc, method):
+    # Clear suppliers first (if you want them always regenerated fresh)
+    doc.custom_supplier_table = []
+
+    seen_item_groups = set()
+    seen_suppliers = set()
+
+    for item in doc.items:
+        if not item.item_code:
+            continue
+
+        item_group = frappe.db.get_value("Item", item.item_code, "item_group")
+        if not item_group or item_group in seen_item_groups:
+            continue
+
+        seen_item_groups.add(item_group)
+
+        suppliers = frappe.get_all(
+            "Material Request Supplier",
+            filters={"parent": item_group, "parenttype": "Item Group"},
+            fields=["supplier", "contact", "email_id"]
+        )
+
+        for sup in suppliers:
+            if not sup.supplier or sup.supplier in seen_suppliers:
+                continue
+
+            doc.append("custom_supplier_table", {
+                "supplier": sup.supplier,
+                "contact": sup.contact,
+                "email_id": sup.email_id
+            })
+            seen_suppliers.add(sup.supplier)
 
 
 
@@ -94,6 +129,8 @@ def notify_expense_payment_made(doc, method):
 
 
 
+
+
 def create_rfq_from_material_request(doc, method):
     try:
         # avoid duplicates
@@ -107,6 +144,7 @@ def create_rfq_from_material_request(doc, method):
         rfq.transaction_date = nowdate()
         rfq.company = doc.company
         rfq.material_request = doc.name
+        rfq.message_for_supplier = f"Please supply the specified items at the best possible rates for {doc.name}."
 
         # copy MR items
         for item in doc.items:
@@ -117,7 +155,16 @@ def create_rfq_from_material_request(doc, method):
                 "material_request": doc.name,
                 "material_request_item": item.name,
                 "warehouse": item.warehouse,
+                "uom": item.uom,
                 "conversion_factor": item.conversion_factor,
+            })
+
+        # copy MR suppliers
+        for sup in doc.custom_supplier_table:
+            rfq.append("suppliers", {
+                "supplier": sup.supplier,
+                "contact": sup.contact,
+                "email_id": sup.email_id
             })
 
         rfq.insert(ignore_permissions=True)
@@ -128,11 +175,10 @@ def create_rfq_from_material_request(doc, method):
             indicator="green"
         )
 
-        # doc.add_comment("Info", ("RFQ {0} created from this Material Request.").format(rfq.name))
-
     except Exception:
         frappe.log_error(frappe.get_traceback(), "Failed to create RFQ from MR")
         raise
+
 
 
 def create_po_from_rfq(doc, method):
