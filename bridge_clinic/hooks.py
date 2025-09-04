@@ -28,6 +28,9 @@ app_license = "mit"
 # app_include_css = "/assets/bridge_clinic/css/bridge_clinic.css"
 # app_include_js = "/assets/bridge_clinic/js/bridge_clinic.js"
 app_include_js = "/assets/bridge_clinic/js/expense_claim.js"
+# app_include_js = "/assets/bridge_clinic/js/material_request.js"
+# app_include_js = "/assets/bridge_clinic/js/request_for_quotation.js"
+# app_include_js = "/assets/bridge_clinic/js/purchase_order.js"
 
 # include js, css files in header of web template
 # web_include_css = "/assets/bridge_clinic/css/bridge_clinic.css"
@@ -152,6 +155,18 @@ doc_events = {
     },
     "Payment Entry": {
         "on_submit": "bridge_clinic.api.notify_expense_payment_made"
+    },
+	#     "Material Request": {
+    #     "on_submit": "bridge_clinic.api.create_rfq_from_material_request"
+    # },
+	    "Request for Quotation": {
+        "on_submit": "bridge_clinic.api.create_po_from_rfq"
+    },
+	    "Purchase Receipt": {
+        "on_submit": "bridge_clinic.api.create_pi_from_pr"
+    },
+	    "Purchase Invoice": {
+        "on_submit": "bridge_clinic.api.create_payment_request_from_pi"
     },
 }
 
