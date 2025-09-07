@@ -136,7 +136,8 @@ app_include_js = "/assets/bridge_clinic/js/expense_claim.js"
 
 override_doctype_class = {
 	# "ToDo": "custom_app.overrides.CustomToDo",
-	"Payment Request": "bridge_clinic.overrides.payment_request.CustomPaymentRequest"
+	"Payment Request": "bridge_clinic.overrides.payment_request.CustomPaymentRequest",
+	"Payment Entry": "bridge_clinic.overrides.payment_entry.CustomPaymentEntry"
 }
 
 # Document Events
@@ -167,10 +168,10 @@ doc_events = {
 	    "Purchase Receipt": {
         "on_submit": "bridge_clinic.api.handle_purchase_receipt_on_submit_for_draft"
     },
-	    "Purchase Invoice": {
-        "on_submit": "bridge_clinic.api.create_payment_request_from_pi"
-    }
-	,
+	#     "Purchase Invoice": {
+    #     "on_submit": "bridge_clinic.api.create_payment_request_from_pi"
+    # }
+	# ,
 	    "Supplier Quotation": {
         "on_submit": "bridge_clinic.api.create_po_from_supplier_quotation"
     }
