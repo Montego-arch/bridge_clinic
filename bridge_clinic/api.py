@@ -194,6 +194,7 @@ def create_po_from_rfq(doc, method):
         po.transaction_date = nowdate()
         po.custom_linked_rfq = doc.name   # ✅ store RFQ link
         po.supplier = doc.suppliers[0].supplier if doc.suppliers else None
+        po.custom_payment_type = "Non-Prepayment"
 
         for item in doc.items:
             po.append("items", {
@@ -321,6 +322,7 @@ def create_po_from_supplier_quotation(doc, method):
         po.transaction_date = nowdate()
         po.supplier = doc.supplier
         po.supplier_quotation = doc.name  # custom link field in PO (if not standard, add custom)
+        po.custom_payment_type = "Non-Prepayment"
 
         # Copy quotation items into PO
         for item in doc.items:
