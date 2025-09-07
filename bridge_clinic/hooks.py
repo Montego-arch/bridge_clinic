@@ -164,10 +164,18 @@ doc_events = {
         "on_submit": "bridge_clinic.api.create_po_from_rfq"
     },
 	    "Purchase Receipt": {
-        "on_submit": "bridge_clinic.api.create_pi_from_pr"
+        "on_submit": "bridge_clinic.api.handle_purchase_receipt_on_submit_for_draft"
     },
 	    "Purchase Invoice": {
         "on_submit": "bridge_clinic.api.create_payment_request_from_pi"
+    }
+	,
+	    "Supplier Quotation": {
+        "on_submit": "bridge_clinic.api.create_po_from_supplier_quotation"
+    }
+	,
+	    "Purchase Order": {
+        "on_submit": "bridge_clinic.api.create_payment_request_from_po"
     }
 }
 

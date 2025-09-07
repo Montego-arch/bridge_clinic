@@ -304,3 +304,391 @@ def create_payment_request_from_pi(doc, method):
     except Exception:
         frappe.log_error(frappe.get_traceback(), "Failed to create PR from PI")
         raise
+
+
+
+def create_po_from_supplier_quotation(doc, method):
+    try:
+        # Avoid duplicates → check if PO already exists for this quotation
+        existing = frappe.db.exists("Purchase Order", {
+            "supplier_quotation": doc.name
+        })
+        if existing:
+            return
+
+        po = frappe.new_doc("Purchase Order")
+        po.company = doc.company
+        po.transaction_date = nowdate()
+        po.supplier = doc.supplier
+        po.supplier_quotation = doc.name  # custom link field in PO (if not standard, add custom)
+
+        # Copy quotation items into PO
+        for item in doc.items:
+            po.append("items", {
+                "item_code": item.item_code,
+                "qty": item.qty,
+                "rate": item.rate,
+                "schedule_date": nowdate(),
+                "warehouse": item.warehouse,
+                "uom": item.uom,
+                "conversion_factor": item.conversion_factor,
+            })
+
+        po.insert(ignore_permissions=True)  # Save as Draft (do not submit)
+
+        frappe.msgprint(
+            ("Purchase Order <b>{0}</b> created in Draft from Supplier Quotation {1}.")
+            .format(po.name, doc.name),
+            alert=True,
+            indicator="green"
+        )
+
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "Failed to create PO from Supplier Quotation")
+        raise
+
+
+def create_payment_request_from_po(doc, method):
+    """
+    After submitting a Purchase Order, generate a draft Payment Request
+    if custom_payment_type == 'Prepayment'.
+    """
+    try:
+        if doc.custom_payment_type != "Prepayment":
+            return  # do nothing for Non-Prepayment
+
+        # avoid duplicates
+        existing = frappe.db.exists("Payment Request", {
+            "reference_doctype": "Purchase Order",
+            "reference_name": doc.name
+        })
+        if existing:
+            return
+
+        pr = frappe.new_doc("Payment Request")
+        pr.payment_request_type = "Outward"
+        pr.reference_doctype = "Purchase Order"
+        pr.reference_name = doc.name
+        pr.party_type = "Supplier"
+        pr.party = doc.supplier
+        pr.transaction_date = nowdate()
+
+        # set mandatory fields
+        pr.currency = doc.currency
+        pr.grand_total = doc.grand_total or 0
+        pr.status = "Draft"
+
+        if frappe.db.exists("Mode of Payment", "Bank"):
+            pr.mode_of_payment = "Bank"
+
+        pr.insert(ignore_permissions=True)
+
+        frappe.msgprint(
+            ("Payment Request <b>{0}</b> created successfully.").format(pr.name),
+            alert=True,
+            indicator="green"
+        )
+
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "Failed to create Payment Request from PO")
+        raise
+
+# def handle_purchase_receipt_on_submit_for_draft(doc, method):
+#     """
+#     When a Purchase Receipt is submitted:
+#     - If linked Purchase Order has custom_payment_type = 'Prepayment'
+#       → Generate Purchase Invoice, pull advances and keep in draft
+#       → If outstanding remains, create Payment Request for that balance
+#     """
+#     try:
+#         # Find linked Purchase Orders
+#         po_names = [d.purchase_order for d in doc.items if d.purchase_order]
+#         if not po_names:
+#             return
+
+#         for po_name in set(po_names):
+#             po = frappe.get_doc("Purchase Order", po_name)
+
+#             # Only handle Prepayment case
+#             if po.custom_payment_type != "Prepayment":
+#                 continue
+
+#             # --- Step 1: Create Purchase Invoice ---
+#             pi = frappe.new_doc("Purchase Invoice")
+#             pi.supplier = po.supplier
+#             pi.company = po.company
+#             pi.currency = po.currency
+#             pi.due_date = nowdate()
+#             pi.purchase_order = po.name
+#             pi.purchase_receipt = doc.name
+
+#             # copy items from receipt
+#             for item in doc.items:
+#                 pi.append("items", {
+#                     "item_code": item.item_code,
+#                     "qty": item.qty,
+#                     "rate": item.rate,
+#                     "amount": item.amount,
+#                     "uom": item.uom,
+#                     "purchase_order": item.purchase_order,
+#                     "purchase_receipt": doc.name,
+#                     "cost_center": item.cost_center,
+#                 })
+
+#             # pull advances
+#             pi.set_advances()
+
+#             pi.insert(ignore_permissions=True)
+
+#             frappe.msgprint(
+#                 f"Purchase Invoice <b>{pi.name}</b> created and advances pulled.",
+#                 alert=True,
+#                 indicator="green"
+#             )
+
+#             # --- Step 2: Check Outstanding ---
+#             if pi.outstanding_amount and pi.outstanding_amount > 0:
+#                 pr = frappe.new_doc("Payment Request")
+#                 pr.payment_request_type = "Outward"
+#                 pr.reference_doctype = "Purchase Invoice"
+#                 pr.reference_name = pi.name
+#                 pr.party_type = "Supplier"
+#                 pr.party = pi.supplier
+#                 pr.transaction_date = nowdate()
+#                 pr.currency = pi.currency
+#                 pr.grand_total = pi.outstanding_amount
+#                 pr.status = "Draft"
+
+#                 if frappe.db.exists("Mode of Payment", "Bank"):
+#                     pr.mode_of_payment = "Bank"
+
+#                 pr.insert(ignore_permissions=True)
+
+#                 frappe.msgprint(
+#                     f"Outstanding found. Payment Request <b>{pr.name}</b> created.",
+#                     alert=True,
+#                     indicator="orange"
+#                 )
+#             else:
+#                 frappe.msgprint(
+#                     f"No outstanding for Purchase Invoice <b>{pi.name}</b>. No Payment Request created.",
+#                     alert=True,
+#                     indicator="blue"
+#                 )
+
+#     except Exception:
+#         frappe.log_error(frappe.get_traceback(), "Failed: PI/PR creation from PR")
+#         raise
+
+
+def handle_purchase_receipt_on_submit_for_draft(doc, method):
+    """
+    When a Purchase Receipt is submitted:
+    - If PO.custom_payment_type = 'Prepayment':
+        → Generate PI, submit, pull advances
+        → If outstanding remains, create Payment Request (Draft) for balance
+    - If PO.custom_payment_type = 'Non-Prepayment':
+        → Generate PI, submit
+        → Always create Payment Request (Draft) for full invoice amount (grand_total)
+    """
+    try:
+        po_names = [d.purchase_order for d in doc.items if d.purchase_order]
+        if not po_names:
+            return
+
+        for po_name in set(po_names):
+            po = frappe.get_doc("Purchase Order", po_name)
+
+            # --- Step 1: Create Purchase Invoice ---
+            pi = frappe.new_doc("Purchase Invoice")
+            pi.supplier = po.supplier
+            pi.company = po.company
+            pi.currency = po.currency
+            pi.due_date = nowdate()
+            pi.purchase_order = po.name
+            pi.purchase_receipt = doc.name
+
+            # copy items from PR
+            for item in doc.items:
+                if item.purchase_order != po.name:
+                    continue
+                pi.append("items", {
+                    "item_code": item.item_code,
+                    "qty": item.qty,
+                    "rate": item.rate,
+                    "amount": item.amount,
+                    "uom": item.uom,
+                    "purchase_order": item.purchase_order,
+                    "purchase_receipt": doc.name,
+                    "cost_center": item.cost_center,
+                })
+
+            # Pull advances if Prepayment
+            if po.custom_payment_type == "Prepayment":
+                pi.set_advances()
+
+            pi.insert(ignore_permissions=True)
+            pi.submit()
+
+            frappe.msgprint(
+                f"Purchase Invoice <b>{pi.name}</b> created and submitted.",
+                alert=True,
+                indicator="green"
+            )
+
+            # --- Step 2: Payment Request Logic ---
+            pr_amount = None
+            pr_note = ""
+
+            if po.custom_payment_type == "Prepayment":
+                if pi.outstanding_amount and pi.outstanding_amount > 0:
+                    pr_amount = pi.outstanding_amount
+                    pr_note = "Outstanding found. "
+                else:
+                    frappe.msgprint(
+                        f"No outstanding for Purchase Invoice <b>{pi.name}</b>. No Payment Request created.",
+                        alert=True,
+                        indicator="blue"
+                    )
+                    continue
+            else:  # Non-Prepayment → always full grand_total
+                pr_amount = pi.grand_total
+                pr_note = "Non-Prepayment PO. "
+
+            # --- Step 3: Duplicate Check ---
+            existing_pr = frappe.get_all(
+                "Payment Request",
+                filters={
+                    "reference_doctype": "Purchase Invoice",
+                    "reference_name": pi.name
+                },
+                pluck="name"
+            )
+            if existing_pr:
+                frappe.msgprint(
+                    f"Payment Request already exists for PI <b>{pi.name}</b>: {', '.join(existing_pr)}",
+                    alert=True,
+                    indicator="orange"
+                )
+                continue
+
+            # --- Step 4: Create Payment Request ---
+            pr = frappe.new_doc("Payment Request")
+            pr.payment_request_type = "Outward"
+            pr.reference_doctype = "Purchase Invoice"
+            pr.reference_name = pi.name
+            pr.party_type = "Supplier"
+            pr.party = pi.supplier
+            pr.transaction_date = nowdate()
+            pr.currency = pi.currency
+            pr.grand_total = pr_amount
+            pr.status = "Draft"
+
+            if frappe.db.exists("Mode of Payment", "Bank"):
+                pr.mode_of_payment = "Bank"
+
+            pr.insert(ignore_permissions=True)
+
+            frappe.msgprint(
+                f"{pr_note}Payment Request <b>{pr.name}</b> created in Draft.",
+                alert=True,
+                indicator="orange"
+            )
+
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "Failed: PI/PR creation from PR")
+        raise
+
+
+
+
+
+
+def handle_purchase_receipt_on_submit(doc, method):
+    """
+    When a Purchase Receipt is submitted:
+    - If linked Purchase Order has custom_payment_type = 'Prepayment'
+      → Generate and submit Purchase Invoice, pull advances
+      → If outstanding remains, create Payment Request for that balance
+    """
+    try:
+        # Find linked Purchase Orders from receipt items
+        po_names = [d.purchase_order for d in doc.items if d.purchase_order]
+        if not po_names:
+            return
+
+        for po_name in set(po_names):
+            po = frappe.get_doc("Purchase Order", po_name)
+
+            # Only handle Prepayment case
+            if po.custom_payment_type != "Prepayment":
+                continue
+
+            # --- Step 1: Create Purchase Invoice ---
+            pi = frappe.new_doc("Purchase Invoice")
+            pi.supplier = po.supplier
+            pi.company = po.company
+            pi.currency = po.currency
+            pi.due_date = nowdate()
+            pi.purchase_order = po.name
+            pi.purchase_receipt = doc.name
+
+            # copy items from PR
+            for item in doc.items:
+                pi.append("items", {
+                    "item_code": item.item_code,
+                    "qty": item.qty,
+                    "rate": item.rate,
+                    "amount": item.amount,
+                    "uom": item.uom,
+                    "purchase_order": item.purchase_order,
+                    "purchase_receipt": doc.name,
+                    "cost_center": item.cost_center,
+                })
+
+            # Pull advances
+            pi.set_advances()
+
+            # Save and Submit PI
+            pi.insert(ignore_permissions=True)
+            pi.submit()
+
+            frappe.msgprint(
+                f"Purchase Invoice <b>{pi.name}</b> created and submitted with advances.",
+                alert=True,
+                indicator="green"
+            )
+
+            # --- Step 2: Handle Outstanding ---
+            if pi.outstanding_amount and pi.outstanding_amount > 0:
+                pr = frappe.new_doc("Payment Request")
+                pr.payment_request_type = "Outward"
+                pr.reference_doctype = "Purchase Invoice"
+                pr.reference_name = pi.name
+                pr.party_type = "Supplier"
+                pr.party = pi.supplier
+                pr.transaction_date = nowdate()
+                pr.currency = pi.currency
+                pr.grand_total = pi.outstanding_amount
+                pr.status = "Draft"
+
+                if frappe.db.exists("Mode of Payment", "Bank"):
+                    pr.mode_of_payment = "Bank"
+
+                pr.insert(ignore_permissions=True)
+
+                frappe.msgprint(
+                    f"Outstanding found. Payment Request <b>{pr.name}</b> created in Draft.",
+                    alert=True,
+                    indicator="orange"
+                )
+            else:
+                frappe.msgprint(
+                    f"No outstanding for Purchase Invoice <b>{pi.name}</b>. No Payment Request created.",
+                    alert=True,
+                    indicator="blue"
+                )
+
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "Failed: PI/PR creation from PR")
+        raise
