@@ -182,41 +182,41 @@ def create_rfq_from_material_request(doc, method):
 
 
 
-def create_po_from_rfq(doc, method):
-    try:
-        existing = frappe.db.exists("Purchase Order", {
-            "custom_linked_rfq": doc.name  # ✅ use custom field
-        })
-        if existing:
-            return
+# def create_po_from_rfq(doc, method):
+#     try:
+#         existing = frappe.db.exists("Purchase Order", {
+#             "custom_linked_rfq": doc.name  # ✅ use custom field
+#         })
+#         if existing:
+#             return
 
-        po = frappe.new_doc("Purchase Order")
-        po.company = doc.company
-        po.transaction_date = nowdate()
-        po.custom_linked_rfq = doc.name   # ✅ store RFQ link
-        po.supplier = doc.suppliers[0].supplier if doc.suppliers else None
-        po.custom_payment_type = "Non-Prepayment"
+#         po = frappe.new_doc("Purchase Order")
+#         po.company = doc.company
+#         po.transaction_date = nowdate()
+#         po.custom_linked_rfq = doc.name   # ✅ store RFQ link
+#         po.supplier = doc.suppliers[0].supplier if doc.suppliers else None
+#         po.custom_payment_type = "Non-Prepayment"
 
-        for item in doc.items:
-            po.append("items", {
-                "item_code": item.item_code,
-                "qty": item.qty,
-                "schedule_date": item.schedule_date or nowdate(),
-                "warehouse": item.warehouse,
-                "conversion_factor": item.conversion_factor,
-            })
+#         for item in doc.items:
+#             po.append("items", {
+#                 "item_code": item.item_code,
+#                 "qty": item.qty,
+#                 "schedule_date": item.schedule_date or nowdate(),
+#                 "warehouse": item.warehouse,
+#                 "conversion_factor": item.conversion_factor,
+#             })
 
-        po.insert(ignore_permissions=True)
+#         po.insert(ignore_permissions=True)
 
-        frappe.msgprint(
-            ("Purchase Order <b>{0}</b> created successfully.").format(po.name),
-            alert=True,
-            indicator="green"
-        )
+#         frappe.msgprint(
+#             ("Purchase Order <b>{0}</b> created successfully.").format(po.name),
+#             alert=True,
+#             indicator="green"
+#         )
 
-    except Exception:
-        frappe.log_error(frappe.get_traceback(), "Failed to create PO from RFQ")
-        raise
+#     except Exception:
+#         frappe.log_error(frappe.get_traceback(), "Failed to create PO from RFQ")
+#         raise
 
 
 
