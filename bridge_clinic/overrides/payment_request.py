@@ -218,25 +218,36 @@ class CustomPaymentRequest(ERPNextPaymentRequest):
 		# ✅ Safely get referenced document
 		ref_doc = frappe.get_doc(self.reference_doctype, self.reference_name)
 
-		# ✅ Handle both new and old function signatures
-		try:
-			existing_payment_request_amount = flt(
-				get_existing_payment_request_amount(ref_doc)
-			)
-		except TypeError:
-			# Fallback if function expects old (doctype, name) signature
-			existing_payment_request_amount = flt(
-				get_existing_payment_request_amount(self.reference_doctype, self.reference_name)
-			)
-
-		# ✅ Expense Claim specific handling
+		# ✅ Expense Claim handling (skip ERPNext helper – no currency field)
 		if ref_doc.doctype == "Expense Claim":
+			existing_payment_request_amount = frappe.db.get_value(
+				"Payment Request",
+				{
+					"reference_doctype": "Expense Claim",
+					"reference_name": ref_doc.name,
+					"docstatus": 1,
+				},
+				"sum(outstanding_amount)",
+			) or 0
+
 			ref_amount = (
 				ref_doc.total_sanctioned_amount
 				or ref_doc.grand_total
 				or 0
 			)
+
 		else:
+			# ✅ Other doctypes use ERPNext’s built-in helper
+			try:
+				existing_payment_request_amount = flt(
+					get_existing_payment_request_amount(ref_doc)
+				)
+			except TypeError:
+				# Fallback if ERPNext is running old signature
+				existing_payment_request_amount = flt(
+					get_existing_payment_request_amount(self.reference_doctype, self.reference_name)
+				)
+
 			if not hasattr(ref_doc, "order_type") or ref_doc.order_type != "Shopping Cart":
 				ref_amount = get_amount(ref_doc, self.payment_account)
 			else:
@@ -249,6 +260,7 @@ class CustomPaymentRequest(ERPNextPaymentRequest):
 					self.reference_doctype
 				)
 			)
+
 
 
 	def create_payment_entry(self, submit=False):
