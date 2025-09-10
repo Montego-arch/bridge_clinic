@@ -157,6 +157,7 @@ def create_rfq_from_material_request(doc, method):
                 "warehouse": item.warehouse,
                 "uom": item.uom,
                 "conversion_factor": item.conversion_factor,
+                "stock_uom": item.stock_uom
             })
 
         # copy MR suppliers
