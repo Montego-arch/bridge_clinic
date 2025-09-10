@@ -103,6 +103,8 @@ class CustomPaymentRequest(ERPNextPaymentRequest):
         
         if not payment_entry.reference_date:
             payment_entry.reference_date = nowdate()
+        
+        payment_entry.currency = "NGN"
 
         if submit:
             payment_entry.submit()
