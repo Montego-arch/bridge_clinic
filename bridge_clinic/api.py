@@ -23,7 +23,7 @@ def create_payment_request_for_expense(doc, method):
         pr.party = doc.employee
         pr.transaction_date = nowdate()
         pr.company = doc.company
-        # pr.currency = doc.currency or frappe.get_cached_value("Company", doc.company, "default_currency")
+        pr.currency = doc.currency or frappe.get_cached_value("Company", doc.company, "default_currency")
         pr.grand_total = doc.total_sanctioned_amount
 
         # optional but good practice
