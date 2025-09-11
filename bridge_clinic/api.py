@@ -443,7 +443,7 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
     pi.posting_date = doc.posting_date
     pi.purchase_receipt = doc.name
     pi.purchase_order = po.name
-    pi.company = doc.company
+    pi.company = po.company
 
     for item in doc.items:
         pi.append("items", {
@@ -480,7 +480,8 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
         "amount": outstanding,
         "reference_doctype": "Purchase Invoice",
         "reference_name": pi.name,
-        "status": "Draft"
+        "status": "Draft",
+        "company": pi.company,
     })
 
     # 💡 This is always safe — pr is a real Doc object
