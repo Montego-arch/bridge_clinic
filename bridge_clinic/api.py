@@ -532,7 +532,7 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
     outstanding = flt(pi.outstanding_amount)
 
     # Debugging info
-    frappe.msgprint(f"DEBUG: pi.company={pi.company}, outstanding={outstanding}")
+    # frappe.msgprint(f"DEBUG: pi.company={pi.company}, outstanding={outstanding}")
 
     if payment_type == "Prepayment" and outstanding <= 0:
         return
