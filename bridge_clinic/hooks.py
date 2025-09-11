@@ -162,9 +162,9 @@ doc_events = {
 		"validate": "bridge_clinic.api.fill_suppliers_in_material_request",
         "on_submit": "bridge_clinic.api.create_rfq_from_material_request"
     },
-	    "Request for Quotation": {
-        "on_submit": "bridge_clinic.api.create_po_from_rfq"
-    },
+	#     "Request for Quotation": {
+    #     "on_submit": "bridge_clinic.api.create_po_from_rfq"
+    # },
 	    "Purchase Receipt": {
         "on_submit": "bridge_clinic.api.handle_purchase_receipt_on_submit_for_draft"
     },
