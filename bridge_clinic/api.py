@@ -428,6 +428,68 @@ def link_advances_manually(pi, supplier):
 
 
 
+# def handle_purchase_receipt_on_submit_for_draft(doc, method):
+#     """On submission of PR, auto-create PI and draft Payment Request depending on payment type."""
+#     if not doc.items:
+#         return
+
+#     # --- Step 1: Get linked PO (assuming PR created from PO) ---
+#     po = frappe.get_doc("Purchase Order", doc.items[0].purchase_order)
+#     payment_type = po.custom_payment_type or "Non-Prepayment"
+
+#     # --- Step 2: Create Purchase Invoice from PR ---
+#     pi = frappe.new_doc("Purchase Invoice")
+#     pi.supplier = po.supplier
+#     pi.posting_date = doc.posting_date
+#     pi.purchase_receipt = doc.name
+#     pi.purchase_order = po.name
+#     pi.company = po.company
+
+#     for item in doc.items:
+#         pi.append("items", {
+#             "item_code": item.item_code,
+#             "qty": item.qty,
+#             "rate": item.rate,
+#             "amount": item.amount,
+#             "purchase_receipt": doc.name,
+#             "purchase_order": item.purchase_order,
+#             "po_detail": getattr(item, "po_detail", None)
+#         })
+
+#     pi.save(ignore_permissions=True)
+
+#     # --- Step 3: Handle Prepayment / Non-Prepayment logic ---
+#     if payment_type == "Prepayment":
+#         link_advances_manually(pi, po.supplier)
+
+#     # Submit PI
+#     pi.submit()
+
+#     # --- Step 4: Always manually create Payment Request in Draft ---
+#     outstanding = flt(pi.outstanding_amount)
+#     if payment_type == "Prepayment" and outstanding <= 0:
+#         return
+
+#     pr = frappe.get_doc({
+#         "doctype": "Payment Request",
+#         "payment_request_type": "Outward",
+#         "party_type": "Supplier",
+#         "party": pi.supplier,
+#         "currency": pi.currency,
+#         "grand_total": outstanding,
+#         "amount": outstanding,
+#         "reference_doctype": "Purchase Invoice",
+#         "reference_name": pi.name,
+#         "status": "Draft",
+#         "company": pi.company,
+#     })
+
+#     # 💡 This is always safe — pr is a real Doc object
+#     pr.insert(ignore_permissions=True)
+
+#     frappe.msgprint(f"Draft Payment Request created for Purchase Invoice {pi.name}")
+
+
 def handle_purchase_receipt_on_submit_for_draft(doc, method):
     """On submission of PR, auto-create PI and draft Payment Request depending on payment type."""
     if not doc.items:
@@ -440,10 +502,11 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
     # --- Step 2: Create Purchase Invoice from PR ---
     pi = frappe.new_doc("Purchase Invoice")
     pi.supplier = po.supplier
+    pi.company = po.company  # ✅ force set company
     pi.posting_date = doc.posting_date
     pi.purchase_receipt = doc.name
     pi.purchase_order = po.name
-    pi.company = po.company
+    pi.currency = po.currency
 
     for item in doc.items:
         pi.append("items", {
@@ -467,12 +530,16 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
 
     # --- Step 4: Always manually create Payment Request in Draft ---
     outstanding = flt(pi.outstanding_amount)
+
+    # Debugging info
+    frappe.msgprint(f"DEBUG: pi.company={pi.company}, outstanding={outstanding}")
+
     if payment_type == "Prepayment" and outstanding <= 0:
         return
 
     pr = frappe.get_doc({
         "doctype": "Payment Request",
-        "payment_request_type": "Inward",
+        "payment_request_type": "Outward",   # ✅ must be Outward for Supplier
         "party_type": "Supplier",
         "party": pi.supplier,
         "currency": pi.currency,
@@ -481,15 +548,12 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
         "reference_doctype": "Purchase Invoice",
         "reference_name": pi.name,
         "status": "Draft",
-        "company": pi.company,
+        "company": pi.company,               # ✅ ensure company is set
     })
 
-    # 💡 This is always safe — pr is a real Doc object
     pr.insert(ignore_permissions=True)
 
     frappe.msgprint(f"Draft Payment Request created for Purchase Invoice {pi.name}")
-
-
 
 
 
