@@ -140,6 +140,10 @@ override_doctype_class = {
 	"Payment Entry": "bridge_clinic.overrides.payment_entry.CustomPaymentEntry"
 }
 
+override_doctype_dashboards = {
+    "Expense Claim": "bridge_clinic.api.get_dashboard_data"
+}
+
 # Document Events
 # ---------------
 # Hook on document methods and events
@@ -156,7 +160,11 @@ doc_events = {
         "on_submit": "bridge_clinic.api.create_payment_request_for_expense"
     },
     "Payment Entry": {
-        "on_submit": "bridge_clinic.api.notify_expense_payment_made"
+        "on_submit": [
+			"bridge_clinic.api.notify_expense_payment_made",
+			"bridge_clinic.bridge_clinic.api.update_expense_status_on_pe"
+		]
+
     },
 	    "Material Request": {
 		"validate": "bridge_clinic.api.fill_suppliers_in_material_request",
@@ -178,7 +186,10 @@ doc_events = {
 	,
 	    "Purchase Order": {
         "on_submit": "bridge_clinic.api.create_payment_request_from_po"
-    }
+    },
+	    "Payment Request": {
+        "after_insert": "bridge_clinic.api.update_expense_status_on_pr"
+    },
 }
 
 # Scheduled Tasks
