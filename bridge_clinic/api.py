@@ -443,7 +443,7 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
     pi.posting_date = doc.posting_date
     pi.purchase_receipt = doc.name
     pi.purchase_order = po.name
-    pi.company = po.company
+    pi.company = doc.company
 
     for item in doc.items:
         pi.append("items", {
