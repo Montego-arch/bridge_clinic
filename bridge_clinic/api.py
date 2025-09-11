@@ -609,6 +609,7 @@ def handle_purchase_receipt_on_submit(doc, method):
                 pr.party = pi.supplier
                 pr.transaction_date = nowdate()
                 pr.currency = pi.currency
+                pr.company = pi.company
                 pr.grand_total = pi.outstanding_amount
                 pr.status = "Draft"
 
