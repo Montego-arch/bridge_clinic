@@ -189,7 +189,6 @@ doc_events = {
     },
 	    "Payment Request": {
         "after_insert": "bridge_clinic.api.update_expense_status_on_pr",
-		"before_insert": "bridge_clinic.api.extend_payment_request_doctypes"
     },
 }
 

@@ -1,6 +1,5 @@
 import frappe
 from frappe.utils import nowdate
-import erpnext.accounts.doctype.payment_request.payment_request as payment_request
 
 def create_payment_request_for_expense(doc, method):
     """
@@ -43,9 +42,7 @@ def create_payment_request_for_expense(doc, method):
         raise
 
 
-def extend_payment_request_doctypes():
-    if "Expense Claim" not in payment_request.allowed_doctypes:
-        payment_request.allowed_doctypes.append("Expense Claim")
+
         
 
 def fill_suppliers_in_material_request(doc, method):
