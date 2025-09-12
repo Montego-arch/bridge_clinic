@@ -98,3 +98,5 @@ class CustomPaymentRequest(ERPNextPaymentRequest):
 			payment_entry.insert(ignore_permissions=True)
 
 		return payment_entry
+
+

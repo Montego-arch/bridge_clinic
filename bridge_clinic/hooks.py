@@ -162,7 +162,7 @@ doc_events = {
     "Payment Entry": {
         "on_submit": [
 			"bridge_clinic.api.notify_expense_payment_made",
-			"bridge_clinic.bridge_clinic.api.update_expense_status_on_pe"
+			"bridge_clinic.api.update_expense_status_on_pe"
 		]
 
     },
@@ -188,7 +188,8 @@ doc_events = {
         "on_submit": "bridge_clinic.api.create_payment_request_from_po"
     },
 	    "Payment Request": {
-        "after_insert": "bridge_clinic.api.update_expense_status_on_pr"
+        "after_insert": "bridge_clinic.api.update_expense_status_on_pr",
+		"before_insert": "bridge_clinic.api.extend_payment_request_doctypes"
     },
 }
 
