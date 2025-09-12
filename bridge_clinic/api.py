@@ -716,10 +716,10 @@ def get_dashboard_data(data):
 def update_expense_status_on_pr(doc, method):
     """When Payment Request is created → set Expense Claim to Payment Requested"""
     if doc.reference_doctype == "Expense Claim":
-        frappe.db.set_value("Expense Claim", doc.reference_name, "approval_status", "Payment Requested")
+        frappe.db.set_value("Expense Claim", doc.reference_name, "workflow_state", "Payment Requested")
 
 def update_expense_status_on_pe(doc, method):
     """When Payment Entry is submitted → set Expense Claim to Paid"""
     for ref in doc.references or []:
         if ref.reference_doctype == "Expense Claim":
-            frappe.db.set_value("Expense Claim", ref.reference_name, "approval_status", "Paid")
+            frappe.db.set_value("Expense Claim", ref.reference_name, "workflow_state", "Paid")
