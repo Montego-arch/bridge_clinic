@@ -30,7 +30,7 @@ app_license = "mit"
 app_include_js = "/assets/bridge_clinic/js/expense_claim.js"
 # app_include_js = "/assets/bridge_clinic/js/purchase_order.js"
 # app_include_js = "/assets/bridge_clinic/js/material_request.js"
-# app_include_js = "/assets/bridge_clinic/js/request_for_quotation.js"
+# app_include_js = "/assets/bridge_clinic/js/supplier_quotation.js"
 # app_include_js = "/assets/bridge_clinic/js/purchase_order.js"
 
 # include js, css files in header of web template
@@ -141,7 +141,8 @@ override_doctype_class = {
 }
 
 override_doctype_dashboards = {
-    "Expense Claim": "bridge_clinic.api.get_dashboard_data"
+    "Expense Claim": "bridge_clinic.overrides.expense_claim_dashboard.get_data",
+	"Supplier Quotation": "bridge_clinic.overrides.supplier_quotation_dashboard.get_data"
 }
 
 # Document Events
@@ -174,7 +175,10 @@ doc_events = {
     #     "on_submit": "bridge_clinic.api.create_po_from_rfq"
     # },
 	    "Purchase Receipt": {
-        "on_submit": "bridge_clinic.api.handle_purchase_receipt_on_submit_for_draft"
+        "on_submit": [
+			"bridge_clinic.api.handle_purchase_receipt_on_submit_for_draft",
+			"bridge_clinic.api.update_expense_status_on_pr"
+			]
     },
 	#     "Purchase Invoice": {
     #     "on_submit": "bridge_clinic.api.create_payment_request_from_pi"
@@ -187,9 +191,9 @@ doc_events = {
 	    "Purchase Order": {
         "on_submit": "bridge_clinic.api.create_payment_request_from_po"
     },
-	    "Payment Request": {
-        "after_insert": "bridge_clinic.api.update_expense_status_on_pr",
-    },
+	#     "Payment Request": {
+    #     "after_insert": "bridge_clinic.api.update_expense_status_on_pr",
+    # },
 }
 
 # Scheduled Tasks
