@@ -177,7 +177,7 @@ doc_events = {
 	    "Purchase Receipt": {
         "on_submit": [
 			"bridge_clinic.api.handle_purchase_receipt_on_submit_for_draft",
-			"bridge_clinic.api.update_expense_status_on_pr"
+			# "bridge_clinic.api.update_expense_status_on_pr"
 			]
     },
 	#     "Purchase Invoice": {
