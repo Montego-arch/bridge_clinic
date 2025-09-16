@@ -712,6 +712,7 @@ def update_expense_status_on_pe(doc, method):
 
 def update_expense_status_on_pr(doc, method):
     """When Payment Request is submitted → set Expense Claim to Payment Requested"""
+    # This will be tested on site
     if doc.reference_doctype == "Expense Claim" and doc.reference_name:
         frappe.db.set_value(
             "Expense Claim",
@@ -719,3 +720,5 @@ def update_expense_status_on_pr(doc, method):
             "workflow_state",
             "Payment Requested"
         )
+
+
