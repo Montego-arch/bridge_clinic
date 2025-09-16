@@ -192,7 +192,10 @@ doc_events = {
         "on_submit": "bridge_clinic.api.create_payment_request_from_po"
     },
 	    "Payment Request": {
-        "on_submit": "bridge_clinic.api.create_payment_entry_from_payment_request",
+        "on_submit": [
+			"bridge_clinic.api.update_expense_status_on_pr",
+			"bridge_clinic.api.create_payment_entry_from_payment_request",
+		]
     },
 }
 
