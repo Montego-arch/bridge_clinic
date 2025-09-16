@@ -710,15 +710,32 @@ def update_expense_status_on_pe(doc, method):
             frappe.db.set_value("Expense Claim", ref.reference_name, "workflow_state", "Paid")
 
 
+# def update_expense_status_on_pr(doc, method):
+#     """When Payment Request is submitted → set Expense Claim to Payment Requested"""
+#     # This will be tested on site
+#     if doc.reference_doctype == "Expense Claim" and doc.reference_name:
+#         frappe.db.set_value(
+#             "Expense Claim",
+#             doc.reference_name,
+#             "workflow_state",
+#             "Payment Request Approved"
+#         )
+
+
 def update_expense_status_on_pr(doc, method):
-    """When Payment Request is submitted → set Expense Claim to Payment Requested"""
-    # This will be tested on site
+    """Update Expense Claim workflow_state when Payment Request is Draft or Submitted"""
     if doc.reference_doctype == "Expense Claim" and doc.reference_name:
-        frappe.db.set_value(
-            "Expense Claim",
-            doc.reference_name,
-            "workflow_state",
-            "Payment Requested"
-        )
-
-
+        if doc.docstatus == 0:  # Draft
+            frappe.db.set_value(
+                "Expense Claim",
+                doc.reference_name,
+                "workflow_state",
+                "Payment Requested"
+            )
+        elif doc.docstatus == 1:  # Submitted
+            frappe.db.set_value(
+                "Expense Claim",
+                doc.reference_name,
+                "workflow_state",
+                "Payment Request Approved"
+            )
