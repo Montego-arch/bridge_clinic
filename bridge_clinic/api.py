@@ -710,11 +710,12 @@ def update_expense_status_on_pe(doc, method):
             frappe.db.set_value("Expense Claim", ref.reference_name, "workflow_state", "Paid")
 
 
-# def update_expense_status_on_pr(doc, method):
-#     """
-#     Triggered on Purchase Receipt submission.
-#     Sets workflow_state to 'Completed'.
-#     """
-#     # Only update if not already Completed
-#     if doc.workflow_state != "Completed":
-#         frappe.db.set_value("Purchase Receipt", doc.name, "workflow_state", "Completed")
+def update_expense_status_on_pr(doc, method):
+    """When Payment Request is submitted → set Expense Claim to Payment Requested"""
+    if doc.reference_doctype == "Expense Claim" and doc.reference_name:
+        frappe.db.set_value(
+            "Expense Claim",
+            doc.reference_name,
+            "workflow_state",
+            "Payment Requested"
+        )
