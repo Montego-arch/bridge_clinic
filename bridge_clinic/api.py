@@ -1,5 +1,7 @@
 import frappe
+from frappe import _
 from frappe.utils import nowdate
+from frappe.model.workflow import get_workflow_safe_globals
 
 def create_payment_request_for_expense(doc, method):
     """
@@ -549,7 +551,7 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
 
     # --- Step 5: Extra PRs for eligible PR tax rows ---
     for tax in doc.taxes or []:
-        if tax.account_head in ["Freight and Forwarding Charges - MID", "Expenses - MID"]:
+        if tax.account_head in ["4102 - WHT Payable - State - BCL", "4103 - WHT Payable - FGN - BCL"]:
             # Avoid duplicates
             exists_tax_pr = frappe.db.exists("Payment Request", {
                 "reference_doctype": "Purchase Receipt",
@@ -858,3 +860,43 @@ def update_expense_status_on_pr(doc, method):
                 "workflow_state",
                 "Payment Request Approved"
             )
+
+
+
+
+def update_item_group_suppliers(doc, method):
+    """When Supplier is saved, update the linked Item Group's custom_suppliers child table."""
+    if not doc.custom_item_group:
+        return
+    
+    try:
+        # Fetch the Item Group document
+        item_group = frappe.get_doc("Item Group", doc.custom_item_group)
+
+        # Check if supplier already exists in the child table
+        existing = None
+        for row in item_group.custom_suppliers:
+            if row.supplier == doc.name:
+                existing = row
+                break
+
+        if existing:
+            # Update existing row
+            existing.contact = doc.supplier_primary_contact or ""
+            existing.email_id = doc.supplier_primary_email or ""
+        else:
+            # Add new row
+            item_group.append("custom_suppliers", {
+                "supplier": doc.supplier_name,
+                "contact": doc.supplier_primary_contact or "",
+                "email_id": doc.email_id or ""
+            })
+
+        # Save changes
+        item_group.save(ignore_permissions=True)
+        frappe.db.commit()
+
+    except Exception as e:
+        raise e
+        frappe.log_error(frappe.get_traceback(), "Supplier → Item Group Sync Failed")
+

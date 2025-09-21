@@ -29,7 +29,6 @@ app_license = "mit"
 # app_include_js = "/assets/bridge_clinic/js/bridge_clinic.js"
 app_include_js = "/assets/bridge_clinic/js/expense_claim.js"
 # app_include_js = "/assets/bridge_clinic/js/purchase_order.js"
-# app_include_js = "/assets/bridge_clinic/js/material_request.js"
 # app_include_js = "/assets/bridge_clinic/js/supplier_quotation.js"
 # app_include_js = "/assets/bridge_clinic/js/purchase_order.js"
 
@@ -142,7 +141,8 @@ override_doctype_class = {
 
 override_doctype_dashboards = {
     "Expense Claim": "bridge_clinic.overrides.expense_claim_dashboard.get_data",
-	"Supplier Quotation": "bridge_clinic.overrides.supplier_quotation_dashboard.get_data"
+	"Supplier Quotation": "bridge_clinic.overrides.supplier_quotation_dashboard.get_data",
+	"Payment Request": "bridge_clinic.overrides.payment_request_dasboard.get_data"
 }
 
 # Document Events
@@ -156,9 +156,13 @@ override_doctype_dashboards = {
 # 		"on_trash": "method"
 # 	}
 # }
+# on_session_creation = [
+#     "bridge_clinic.api.add_safe_globals"
+# ]
+
 doc_events = {
     "Expense Claim": {
-        "on_submit": "bridge_clinic.api.create_payment_request_for_expense"
+        "on_submit": "bridge_clinic.api.create_payment_request_for_expense",
     },
     "Payment Entry": {
         "on_submit": [
@@ -196,6 +200,9 @@ doc_events = {
 			"bridge_clinic.api.update_expense_status_on_pr",
 			"bridge_clinic.api.create_payment_entry_from_payment_request",
 		]
+    },
+	    "Supplier": {
+        "validate": "bridge_clinic.api.update_item_group_suppliers"
     },
 }
 
