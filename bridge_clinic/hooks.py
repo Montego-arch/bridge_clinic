@@ -182,28 +182,38 @@ doc_events = {
 	    "Purchase Receipt": {
         "on_submit": [
 			"bridge_clinic.api.handle_purchase_receipt_on_submit_for_draft",
-			# "bridge_clinic.api.update_expense_status_on_pr"
+			"bridge_clinic.api.update_mr_workflow_state_from_pr"
 			]
     },
-	#     "Purchase Invoice": {
-    #     "on_submit": "bridge_clinic.api.create_payment_request_from_pi"
-    # }
-	# ,
+	    "Purchase Invoice": {
+        "on_submit": "bridge_clinic.api.update_mr_workflow_state_from_pi"
+    }
+	,
 	    "Supplier Quotation": {
-        "on_submit": "bridge_clinic.api.create_po_from_supplier_quotation"
+        "on_submit": [
+			"bridge_clinic.api.create_po_from_supplier_quotation",
+			"bridge_clinic.api.update_mr_workflow_state_from_sq"
+		]
     }
 	,
 	    "Purchase Order": {
-        "on_submit": "bridge_clinic.api.create_payment_request_from_po"
+        "on_submit": [
+			"bridge_clinic.api.create_payment_request_from_po",
+			"bridge_clinic.api.update_mr_workflow_state_from_po"
+		]
     },
 	    "Payment Request": {
         "on_submit": [
 			"bridge_clinic.api.update_expense_status_on_pr",
 			"bridge_clinic.api.create_payment_entry_from_payment_request",
+			"bridge_clinic.api.update_mr_workflow_state_from_payment_request"
 		]
     },
 	    "Supplier": {
         "validate": "bridge_clinic.api.update_item_group_suppliers"
+    },
+	    "Request for Quotation": {
+        "validate": "bridge_clinic.api.update_mr_workflow_state_from_rfq"
     },
 }
 
