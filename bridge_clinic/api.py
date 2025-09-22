@@ -897,6 +897,22 @@ def update_item_group_suppliers(doc, method):
         frappe.db.commit()
 
     except Exception as e:
-        raise e
+        # raise e
         frappe.log_error(frappe.get_traceback(), "Supplier → Item Group Sync Failed")
 
+
+
+
+
+def set_limit_exceeded_flag(doc, method=None):
+    limit_exceeded = False
+
+    for row in doc.expenses:
+        amount = float(row.amount or 0)
+        claim_limit = float(row.custom_claim_limit or 0)
+
+        if amount > claim_limit:
+            limit_exceeded = True
+            break
+
+    doc.custom_limit_exceeded = "Limit Exceeded" if limit_exceeded else ""

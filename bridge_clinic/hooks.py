@@ -163,6 +163,7 @@ override_doctype_dashboards = {
 doc_events = {
     "Expense Claim": {
         "on_submit": "bridge_clinic.api.create_payment_request_for_expense",
+		"validate": "bridge_clinic.api.set_limit_exceeded_flag"
     },
     "Payment Entry": {
         "on_submit": [
