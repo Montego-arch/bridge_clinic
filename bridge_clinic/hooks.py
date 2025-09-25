@@ -142,7 +142,7 @@ override_doctype_class = {
 override_doctype_dashboards = {
     "Expense Claim": "bridge_clinic.overrides.expense_claim_dashboard.get_data",
 	"Supplier Quotation": "bridge_clinic.overrides.supplier_quotation_dashboard.get_data",
-	"Payment Request": "bridge_clinic.overrides.payment_request_dasboard.get_data"
+	# "Payment Request": "bridge_clinic.overrides.payment_request_dasboard.get_data"
 }
 
 # Document Events
