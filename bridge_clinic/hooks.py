@@ -28,6 +28,7 @@ app_license = "mit"
 # app_include_css = "/assets/bridge_clinic/css/bridge_clinic.css"
 # app_include_js = "/assets/bridge_clinic/js/bridge_clinic.js"
 app_include_js = "/assets/bridge_clinic/js/expense_claim.js"
+app_include_js = "/assets/bridge_clinic/js/expense_claim_detail.js"
 # app_include_js = "/assets/bridge_clinic/js/purchase_order.js"
 # app_include_js = "/assets/bridge_clinic/js/supplier_quotation.js"
 # app_include_js = "/assets/bridge_clinic/js/purchase_order.js"
@@ -163,7 +164,10 @@ override_doctype_dashboards = {
 doc_events = {
     "Expense Claim": {
         "on_submit": "bridge_clinic.api.create_payment_request_for_expense",
-		"validate": "bridge_clinic.api.set_limit_exceeded_flag"
+		"validate": [
+			"bridge_clinic.api.set_limit_exceeded_flag",
+			"bridge_clinic.api.validate_expense_claim_type"
+		]
     },
     "Payment Entry": {
         "on_submit": [
