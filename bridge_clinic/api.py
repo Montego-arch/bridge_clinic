@@ -493,6 +493,7 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
     pi.supplier = po.supplier
     pi.company = po.company
     pi.posting_date = doc.posting_date
+    pi.due_date = doc.posting_date
     pi.purchase_receipt = doc.name
     pi.purchase_order = po.name
     pi.currency = po.currency
