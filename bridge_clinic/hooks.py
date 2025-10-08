@@ -197,7 +197,9 @@ doc_events = {
         "on_submit": [
 			"bridge_clinic.api.create_po_from_supplier_quotation",
 			"bridge_clinic.api.update_mr_workflow_state_from_sq"
-		]
+		],
+		"after_insert": "bridge_clinic.api.update_mr_workflow_state_on_sq_creation",
+
     }
 	,
 	    "Purchase Order": {

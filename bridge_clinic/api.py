@@ -136,6 +136,10 @@ def notify_expense_payment_made(doc, method):
 
 def create_rfq_from_material_request(doc, method):
     try:
+        # Only proceed if Material request type is Purchase
+        if doc.material_request_type != "Purchase":
+            return
+        
         # avoid duplicates
         existing = frappe.db.exists("Request for Quotation", {
             "material_request": doc.name
@@ -923,34 +927,41 @@ def set_limit_exceeded_flag(doc, method=None):
 
 
 def update_mr_workflow_state_from_rfq(doc, method=None):
-    """When RFQ is submitted, set linked Material Request workflow_state to RFQ Sent"""
+    """When RFQ is submitted, set linked Material Request workflow_state to RFQ Created"""
     for d in doc.get("items", []):
         if d.material_request:
-            frappe.db.set_value("Material Request", d.material_request, "workflow_state", "RFQ Sent")
+            frappe.db.set_value("Material Request", d.material_request, "workflow_state", "RFQ Created")
+
+def update_mr_workflow_state_on_sq_creation(doc, method=None):
+    """When Supplier Quotation is created, set linked MR workflow_state to 'SQ Submitted'."""
+    for d in doc.get("items", []):
+        if d.material_request:
+            frappe.db.set_value("Material Request", d.material_request, "workflow_state", "SQ Submitted")
+
 
 def update_mr_workflow_state_from_sq(doc, method=None):
     """When Supplier Quotation is submitted, set linked MR workflow_state to Supplier Quotation Approved"""
     for d in doc.get("items", []):
         if d.material_request:
-            frappe.db.set_value("Material Request", d.material_request, "workflow_state", "Supplier Quotation Approved")
+            frappe.db.set_value("Material Request", d.material_request, "workflow_state", "SQ Approved")
 
 def update_mr_workflow_state_from_po(doc, method=None):
     """When Purchase Order is submitted, set linked MR workflow_state to Purchase Order Approved"""
     for d in doc.get("items", []):
         if d.material_request:
-            frappe.db.set_value("Material Request", d.material_request, "workflow_state", "Purchase Order Approved")
+            frappe.db.set_value("Material Request", d.material_request, "workflow_state", "PO Approved")
 
 def update_mr_workflow_state_from_pr(doc, method=None):
     """When Purchase Receipt is submitted, set linked MR workflow_state to Purchase Received"""
     for d in doc.get("items", []):
         if d.material_request:
-            frappe.db.set_value("Material Request", d.material_request, "workflow_state", "Purchase Received")
+            frappe.db.set_value("Material Request", d.material_request, "workflow_state", "PR Approved")
 
 def update_mr_workflow_state_from_pi(doc, method=None):
     """When Purchase Invoice is submitted, set linked MR workflow_state to Purchase Invoiced"""
     for d in doc.get("items", []):
         if d.material_request:
-            frappe.db.set_value("Material Request", d.material_request, "workflow_state", "Purchase Invoiced")
+            frappe.db.set_value("Material Request", d.material_request, "workflow_state", "PI Approved")
 
 def update_mr_workflow_state_from_payment_request(doc, method=None):
     """When Payment Request is submitted, set linked MR workflow_state to Purchase Request Approved"""
