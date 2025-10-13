@@ -493,7 +493,7 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
     pi.supplier = po.supplier
     pi.company = po.company
     pi.posting_date = doc.posting_date
-    pi.due_date = doc.posting_date
+    # pi.due_date = doc.posting_date
     pi.purchase_receipt = doc.name
     pi.purchase_order = po.name
     pi.currency = po.currency
@@ -975,8 +975,56 @@ def update_mr_workflow_state_from_payment_request(doc, method=None):
 
 
 
+# def validate_expense_claim_type(doc, method):
+#     """Restrict allowed Expense Claim Types based on employee designation."""
+
+#     # Define restricted and allowed expense claim types
+#     executive_assistant_types = [
+#         "Board Expenses - BCL",
+#         "Directors expenses - BCL",
+#         "Foreign Travel Expenses - BCL",
+#         "Staff Training - Foreign - BCL"
+#     ]
+
+#     lab_manager_types = [
+#         "Foreign Procurements - BCL"
+#     ]
+
+#     restricted_types = executive_assistant_types + lab_manager_types
+
+#     # Get the current user's designation via Employee record
+#     designation = frappe.db.get_value("Employee", {"user_id": frappe.session.user}, "designation")
+
+#     if not designation:
+#         frappe.throw("No Employee record found for this user. Please ensure your user is linked to an Employee.")
+
+#     # Determine allowed expense types based on designation
+#     if designation == "Executive Assistant":
+#         allowed_types = executive_assistant_types + [
+#             e.name for e in frappe.get_all("Expense Claim Type", filters=[["name", "not in", restricted_types]])
+#         ]
+#     elif designation == "Lab Manager":
+#         allowed_types = lab_manager_types + [
+#             e.name for e in frappe.get_all("Expense Claim Type", filters=[["name", "not in", restricted_types]])
+#         ]
+#     else:
+#         # Everyone else can select all except the restricted ones
+#         allowed_types = [
+#             e.name for e in frappe.get_all("Expense Claim Type", filters=[["name", "not in", restricted_types]])
+#         ]
+
+#     # Validate each expense line
+#     for row in doc.expenses:
+#         if row.expense_type not in allowed_types:
+#             frappe.throw(
+#                 f"You are not permitted to select the Expense Claim Type '{row.expense_type}'.\n\n"
+#                 f"Allowed types for your designation ({designation}) are:\n"
+#                 f"{', '.join(allowed_types)}"
+#             )
+
+
 def validate_expense_claim_type(doc, method):
-    """Restrict allowed Expense Claim Types based on employee designation."""
+    """Restrict allowed Expense Claim Types based on user roles."""
 
     # Define restricted and allowed expense claim types
     executive_assistant_types = [
@@ -992,33 +1040,29 @@ def validate_expense_claim_type(doc, method):
 
     restricted_types = executive_assistant_types + lab_manager_types
 
-    # Get the current user's designation via Employee record
-    designation = frappe.db.get_value("Employee", {"user_id": frappe.session.user}, "designation")
+    # Fetch roles for current user
+    user_roles = frappe.get_roles(frappe.session.user)
 
-    if not designation:
-        frappe.throw("No Employee record found for this user. Please ensure your user is linked to an Employee.")
-
-    # Determine allowed expense types based on designation
-    if designation == "Executive Assistant":
+    # Determine allowed types based on role
+    if "EA" in user_roles:
         allowed_types = executive_assistant_types + [
             e.name for e in frappe.get_all("Expense Claim Type", filters=[["name", "not in", restricted_types]])
         ]
-    elif designation == "Lab Manager":
+    elif "HOD Laboratory" in user_roles:
         allowed_types = lab_manager_types + [
             e.name for e in frappe.get_all("Expense Claim Type", filters=[["name", "not in", restricted_types]])
         ]
     else:
-        # Everyone else can select all except the restricted ones
+        # All other users — exclude restricted expense types
         allowed_types = [
             e.name for e in frappe.get_all("Expense Claim Type", filters=[["name", "not in", restricted_types]])
         ]
 
-    # Validate each expense line
+    # Validate each expense line in the claim
     for row in doc.expenses:
         if row.expense_type not in allowed_types:
             frappe.throw(
                 f"You are not permitted to select the Expense Claim Type '{row.expense_type}'.\n\n"
-                f"Allowed types for your designation ({designation}) are:\n"
-                f"{', '.join(allowed_types)}"
+                f"Allowed types for your role(s): {', '.join(user_roles)}\n"
+                f"Please select from: {', '.join(allowed_types)}"
             )
-
