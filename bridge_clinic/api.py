@@ -554,7 +554,7 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
 
     pi.insert(ignore_permissions=True)
     pi.db_set("posting_date", posting_date)
-    pi.db.set("bill_date", bill_date)
+    pi.db_set("bill_date", bill_date)
     pi.db_set("due_date", due_date)
 
     # --- Step 3: Handle Prepayment / Non-Prepayment logic ---
