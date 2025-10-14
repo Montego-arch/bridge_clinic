@@ -259,6 +259,7 @@ def create_po_from_supplier_quotation(doc, method):
                 "warehouse": item.warehouse,
                 "uom": item.uom,
                 "conversion_factor": item.conversion_factor,
+                "supplier_quotation": doc.name 
             })
 
         # Copy taxes if any exist
