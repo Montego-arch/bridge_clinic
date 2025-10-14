@@ -498,6 +498,7 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
     pi.bill_date = doc.posting_date #nowdate()
     # pi.due_date = add_days(getdate(doc.posting_date), 1)
     # pi.due_date = add_days(nowdate(), 1)
+    pi.bill_no = doc.name
     pi.due_date = doc.posting_date
     pi.purchase_receipt = doc.name
     pi.purchase_order = po.name
