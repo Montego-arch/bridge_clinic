@@ -575,7 +575,7 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
     pi.company = po.company
     pi.posting_date = posting_date
     pi.bill_date = bill_date
-    # pi.due_date = due_date
+    pi.due_date = due_date
     pi.bill_no = doc.name
     pi.purchase_receipt = doc.name
     pi.purchase_order = po.name
@@ -616,17 +616,13 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
 
     # --- Step 4: Insert first, then clear payment terms ---
     pi.insert(ignore_permissions=True)
-    pi.payment_terms_template = None
-    pi.due_date = add_days(pi.posting_date, 1)
-
-    # Clear payment terms template AFTER insertion
-    # pi.db_set("payment_terms_template", None)
-    # frappe.db.sql("""DELETE FROM `tabPayment Schedule` WHERE parent=%s""", pi.name)
-
-    # Reapply your clean dates after ERPNext auto-calcs
-    pi.db_set("bill_date", bill_date)
-    pi.db_set("due_date", due_date)
-    pi.db_set("posting_date", posting_date)
+    
+	# If a payment terms template exists, get the latest due date from schedule
+    if pi.payment_terms_template and pi.payment_schedule:
+        due_dates = [getdate(d.due_date) for d in pi.payment_schedule if d.due_date]
+        if due_dates:
+            pi.due_date = max(due_dates)  # set to the latest due date
+            frappe.msgprint(f"Overriding due date to match payment term: {pi.due_date}")
 
     # --- Step 5: Handle prepayment logic ---
     if payment_type == "Prepayment":
