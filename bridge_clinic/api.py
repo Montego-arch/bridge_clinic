@@ -413,24 +413,44 @@ def link_advances_manually(pi, supplier):
     pi.save(ignore_permissions=True)
 
 
+from frappe.utils import flt, nowdate
+
 # def handle_purchase_receipt_on_submit_for_draft(doc, method):
-#     """On submission of PR, auto-create PI and draft Payment Request depending on payment type."""
+#     """On submission of PR, auto-create PI and draft Payment Requests (main + tax rows)."""
 #     if not doc.items:
 #         return
 
 #     # --- Step 1: Get linked PO (assuming PR created from PO) ---
 #     po = frappe.get_doc("Purchase Order", doc.items[0].purchase_order)
 #     payment_type = po.custom_payment_type or "Non-Prepayment"
-
-#     # --- Step 2: Create Purchase Invoice from PR ---
 #     pi = frappe.new_doc("Purchase Invoice")
+    
+
+#     posting_date = getdate(doc.posting_date)
+#     bill_date = posting_date
+#     due_date = add_days(posting_date, 1)
+
 #     pi.supplier = po.supplier
-#     pi.company = po.company  # ✅ force set company
-#     pi.posting_date = doc.posting_date
+#     pi.company = po.company
+#     pi.posting_date = posting_date
+#     pi.bill_date = bill_date
+#     pi.due_date = due_date
+#     pi.bill_no = doc.name
 #     pi.purchase_receipt = doc.name
 #     pi.purchase_order = po.name
 #     pi.currency = po.currency
 
+# 	# 🧾 Debug message
+#     frappe.msgprint(
+# 		f"""
+# 		<b>DEBUG DATE CHECK</b><br>
+# 		Posting Date: {pi.posting_date}<br>
+# 		Supplier Invoice (Bill) Date: {pi.bill_date}<br>
+# 		Due Date: {pi.due_date}<br>
+# 		"""
+# 	)
+
+#     # Copy items
 #     for item in doc.items:
 #         pi.append("items", {
 #             "item_code": item.item_code,
@@ -442,44 +462,98 @@ def link_advances_manually(pi, supplier):
 #             "po_detail": getattr(item, "po_detail", None)
 #         })
 
-#     pi.save(ignore_permissions=True)
+#     # Copy taxes into PI
+#     for tax in doc.taxes or []:
+#         pi.append("taxes", {
+#             "charge_type": tax.charge_type,
+#             "account_head": tax.account_head,
+#             "rate": tax.rate,
+#             "tax_amount": tax.tax_amount,
+#             "description": tax.description,
+#             "cost_center": tax.cost_center,
+#             "included_in_print_rate": tax.included_in_print_rate,
+#             "base_tax_amount": tax.base_tax_amount
+#         })
+
+#     pi.insert(ignore_permissions=True)
+#     pi.db_set("posting_date", posting_date)
+#     pi.db_set("bill_date", bill_date)
+#     pi.db_set("due_date", due_date)
+    
+
 
 #     # --- Step 3: Handle Prepayment / Non-Prepayment logic ---
 #     if payment_type == "Prepayment":
 #         link_advances_manually(pi, po.supplier)
+#         pi.save(ignore_permissions=True)
 
 #     # Submit PI
 #     pi.submit()
 
-#     # --- Step 4: Always manually create Payment Request in Draft ---
+#     # --- Step 4: Main Payment Request (for PI outstanding) ---
 #     outstanding = flt(pi.outstanding_amount)
 
-#     # Debugging info
-#     # frappe.msgprint(f"DEBUG: pi.company={pi.company}, outstanding={outstanding}")
+#     if not (payment_type == "Prepayment" and outstanding <= 0):
+#         pr = frappe.get_doc({
+#             "doctype": "Payment Request",
+#             "payment_request_type": "Outward",
+#             "party_type": "Supplier",
+#             "party": pi.supplier,
+#             "currency": pi.currency,
+#             "grand_total": outstanding,
+#             "amount": outstanding,
+#             "reference_doctype": "Purchase Invoice",
+#             "reference_name": pi.name,
+#             "status": "Draft",
+#             "company": pi.company,
+#         })
+#         pr.insert(ignore_permissions=True)
 
-#     if payment_type == "Prepayment" and outstanding <= 0:
-#         return
+#         frappe.msgprint(f"Draft Payment Request created for Purchase Invoice {pi.name}")
 
-#     pr = frappe.get_doc({
-#         "doctype": "Payment Request",
-#         "payment_request_type": "Outward",   # ✅ must be Outward for Supplier
-#         "party_type": "Supplier",
-#         "party": pi.supplier,
-#         "currency": pi.currency,
-#         "grand_total": outstanding,
-#         "amount": outstanding,
-#         "reference_doctype": "Purchase Invoice",
-#         "reference_name": pi.name,
-#         "status": "Draft",
-#         "company": pi.company,               # ✅ ensure company is set
-#     })
+#     # --- Step 5: Extra PRs for eligible PR tax rows ---
+#     for tax in doc.taxes or []:
+#         if tax.account_head in ["4102 - WHT Payable - State - BCL", "4103 - WHT Payable - FGN - BCL"]:
+#             # Avoid duplicates
+#             exists_tax_pr = frappe.db.exists("Payment Request", {
+#                 "reference_doctype": "Purchase Receipt",
+#                 "reference_name": doc.name,
+#                 "custom_is_tax_request": 1,
+#                 # "custom_tax_account": tax.account_head,
+#             })
+#             if exists_tax_pr:
+#                 continue
 
-#     pr.insert(ignore_permissions=True)
-#             # extra PRs for taxes (Freight/Expenses)
-#     frappe.msgprint(f"Draft Payment Request created for Purchase Invoice {pi.name}")
+#             pr_tax = frappe.new_doc("Payment Request")
+#             pr_tax.payment_request_type = "Outward"
+#             pr_tax.reference_doctype = "Purchase Invoice"
+#             pr_tax.reference_name = pi.name
+#             pr_tax.party_type = "Supplier"
+#             pr_tax.party = doc.supplier
+#             pr_tax.transaction_date = nowdate()
+#             pr_tax.currency = doc.currency
 
+#             # 💰 Only the tax amount
+#             pr_tax.grand_total = tax.tax_amount or 0
+#             pr_tax.amount = tax.tax_amount or 0
+#             pr_tax.status = "Draft"
 
-from frappe.utils import flt, nowdate
+#             # Custom flags for traceability
+#             pr_tax.custom_is_tax_request = 1
+#             # pr_tax.custom_tax_account = tax.account_head
+
+#             if frappe.db.exists("Mode of Payment", "Bank"):
+#                 pr_tax.mode_of_payment = "Bank"
+
+#             pr_tax.insert(ignore_permissions=True)
+
+#             frappe.msgprint(
+#                 f"Extra Payment Request <b>{pr_tax.name}</b> created for tax row "
+#                 f"{tax.account_head} ({tax.tax_amount}).",
+#                 alert=True,
+#                 indicator="blue"
+#             )
+
 
 def handle_purchase_receipt_on_submit_for_draft(doc, method):
     """On submission of PR, auto-create PI and draft Payment Requests (main + tax rows)."""
@@ -490,23 +564,13 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
     po = frappe.get_doc("Purchase Order", doc.items[0].purchase_order)
     payment_type = po.custom_payment_type or "Non-Prepayment"
 
-    # # --- Step 2: Create Purchase Invoice from PR ---
-    # pi = frappe.new_doc("Purchase Invoice")
-    # pi.supplier = po.supplier
-    # pi.company = po.company
-    # pi.posting_date = doc.posting_date  
-    # pi.bill_date = pi.posting_date
-    # pi.due_date = pi.posting_date
-    # pi.bill_no = doc.name
-    # pi.purchase_receipt = doc.name
-    # pi.purchase_order = po.name
-    # pi.currency = po.currency
-    pi = frappe.new_doc("Purchase Invoice")
-
+    # --- Step 2: Prepare key dates ---
     posting_date = getdate(doc.posting_date)
     bill_date = posting_date
     due_date = add_days(posting_date, 1)
 
+    # --- Step 3: Create Purchase Invoice ---
+    pi = frappe.new_doc("Purchase Invoice")
     pi.supplier = po.supplier
     pi.company = po.company
     pi.posting_date = posting_date
@@ -517,15 +581,13 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
     pi.purchase_order = po.name
     pi.currency = po.currency
 
-	# 🧾 Debug message
-    frappe.msgprint(
-		f"""
-		<b>DEBUG DATE CHECK</b><br>
-		Posting Date: {pi.posting_date}<br>
-		Supplier Invoice (Bill) Date: {pi.bill_date}<br>
-		Due Date: {pi.due_date}<br>
-		"""
-	)
+    # 🧾 Debugging Info
+    frappe.msgprint(f"""
+        <b>DEBUG DATE CHECK</b><br>
+        Posting Date: {pi.posting_date}<br>
+        Bill Date: {pi.bill_date}<br>
+        Due Date: {pi.due_date}<br>
+    """)
 
     # Copy items
     for item in doc.items:
@@ -539,7 +601,7 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
             "po_detail": getattr(item, "po_detail", None)
         })
 
-    # Copy taxes into PI
+    # Copy taxes
     for tax in doc.taxes or []:
         pi.append("taxes", {
             "charge_type": tax.charge_type,
@@ -552,22 +614,28 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
             "base_tax_amount": tax.base_tax_amount
         })
 
+    # --- Step 4: Insert first, then clear payment terms ---
     pi.insert(ignore_permissions=True)
-    pi.db_set("posting_date", posting_date)
+
+    # Clear payment terms template AFTER insertion
+    pi.db_set("payment_terms_template", None)
+    frappe.db.sql("""DELETE FROM `tabPayment Schedule` WHERE parent=%s""", pi.name)
+
+    # Reapply your clean dates after ERPNext auto-calcs
     pi.db_set("bill_date", bill_date)
     pi.db_set("due_date", due_date)
+    pi.db_set("posting_date", posting_date)
 
-    # --- Step 3: Handle Prepayment / Non-Prepayment logic ---
+    # --- Step 5: Handle prepayment logic ---
     if payment_type == "Prepayment":
         link_advances_manually(pi, po.supplier)
         pi.save(ignore_permissions=True)
 
-    # Submit PI
+    # --- Step 6: Submit the PI ---
     pi.submit()
 
-    # --- Step 4: Main Payment Request (for PI outstanding) ---
+    # --- Step 7: Create Payment Request for outstanding ---
     outstanding = flt(pi.outstanding_amount)
-
     if not (payment_type == "Prepayment" and outstanding <= 0):
         pr = frappe.get_doc({
             "doctype": "Payment Request",
@@ -583,20 +651,16 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
             "company": pi.company,
         })
         pr.insert(ignore_permissions=True)
-
         frappe.msgprint(f"Draft Payment Request created for Purchase Invoice {pi.name}")
 
-    # --- Step 5: Extra PRs for eligible PR tax rows ---
+    # --- Step 8: Tax-specific PRs ---
     for tax in doc.taxes or []:
         if tax.account_head in ["4102 - WHT Payable - State - BCL", "4103 - WHT Payable - FGN - BCL"]:
-            # Avoid duplicates
-            exists_tax_pr = frappe.db.exists("Payment Request", {
+            if frappe.db.exists("Payment Request", {
                 "reference_doctype": "Purchase Receipt",
                 "reference_name": doc.name,
-                "custom_is_tax_request": 1,
-                # "custom_tax_account": tax.account_head,
-            })
-            if exists_tax_pr:
+                "custom_is_tax_request": 1
+            }):
                 continue
 
             pr_tax = frappe.new_doc("Payment Request")
@@ -607,15 +671,10 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
             pr_tax.party = doc.supplier
             pr_tax.transaction_date = nowdate()
             pr_tax.currency = doc.currency
-
-            # 💰 Only the tax amount
             pr_tax.grand_total = tax.tax_amount or 0
             pr_tax.amount = tax.tax_amount or 0
             pr_tax.status = "Draft"
-
-            # Custom flags for traceability
             pr_tax.custom_is_tax_request = 1
-            # pr_tax.custom_tax_account = tax.account_head
 
             if frappe.db.exists("Mode of Payment", "Bank"):
                 pr_tax.mode_of_payment = "Bank"
@@ -628,8 +687,6 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
                 alert=True,
                 indicator="blue"
             )
-
-
 
 
 
