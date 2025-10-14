@@ -2,6 +2,7 @@ import frappe
 from frappe import _
 from frappe.utils import nowdate
 from frappe.model.workflow import get_workflow_safe_globals
+from frappe.utils import add_days, getdate
 
 def create_payment_request_for_expense(doc, method):
     """
@@ -497,6 +498,10 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
     pi.purchase_receipt = doc.name
     pi.purchase_order = po.name
     pi.currency = po.currency
+    
+    receipt_date = getdate(doc.posting_date)
+    
+    pi.due_date = add_days(receipt_date, 1)
 
     # Copy items
     for item in doc.items:
@@ -1023,46 +1028,4 @@ def update_mr_workflow_state_from_payment_request(doc, method=None):
 #             )
 
 
-def validate_expense_claim_type(doc, method):
-    """Restrict allowed Expense Claim Types based on user roles."""
 
-    # Define restricted and allowed expense claim types
-    executive_assistant_types = [
-        "Board Expenses - BCL",
-        "Directors expenses - BCL",
-        "Foreign Travel Expenses - BCL",
-        "Staff Training - Foreign - BCL"
-    ]
-
-    lab_manager_types = [
-        "Foreign Procurements - BCL"
-    ]
-
-    restricted_types = executive_assistant_types + lab_manager_types
-
-    # Fetch roles for current user
-    user_roles = frappe.get_roles(frappe.session.user)
-
-    # Determine allowed types based on role
-    if "EA" in user_roles:
-        allowed_types = executive_assistant_types + [
-            e.name for e in frappe.get_all("Expense Claim Type", filters=[["name", "not in", restricted_types]])
-        ]
-    elif "HOD Laboratory" in user_roles:
-        allowed_types = lab_manager_types + [
-            e.name for e in frappe.get_all("Expense Claim Type", filters=[["name", "not in", restricted_types]])
-        ]
-    else:
-        # All other users — exclude restricted expense types
-        allowed_types = [
-            e.name for e in frappe.get_all("Expense Claim Type", filters=[["name", "not in", restricted_types]])
-        ]
-
-    # Validate each expense line in the claim
-    for row in doc.expenses:
-        if row.expense_type not in allowed_types:
-            frappe.throw(
-                f"You are not permitted to select the Expense Claim Type '{row.expense_type}'.\n\n"
-                f"Allowed types for your role(s): {', '.join(user_roles)}\n"
-                f"Please select from: {', '.join(allowed_types)}"
-            )
