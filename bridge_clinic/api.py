@@ -490,17 +490,42 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
     po = frappe.get_doc("Purchase Order", doc.items[0].purchase_order)
     payment_type = po.custom_payment_type or "Non-Prepayment"
 
-    # --- Step 2: Create Purchase Invoice from PR ---
+    # # --- Step 2: Create Purchase Invoice from PR ---
+    # pi = frappe.new_doc("Purchase Invoice")
+    # pi.supplier = po.supplier
+    # pi.company = po.company
+    # pi.posting_date = doc.posting_date  
+    # pi.bill_date = pi.posting_date
+    # pi.due_date = pi.posting_date
+    # pi.bill_no = doc.name
+    # pi.purchase_receipt = doc.name
+    # pi.purchase_order = po.name
+    # pi.currency = po.currency
     pi = frappe.new_doc("Purchase Invoice")
+
+    posting_date = getdate(doc.posting_date or nowdate())
+    bill_date = posting_date
+    due_date = add_days(posting_date, 1)
+
     pi.supplier = po.supplier
     pi.company = po.company
-    pi.posting_date = doc.posting_date  
-    pi.bill_date = pi.posting_date
-    pi.due_date = pi.posting_date
+    pi.posting_date = posting_date
+    pi.bill_date = bill_date
+    pi.due_date = due_date
     pi.bill_no = doc.name
     pi.purchase_receipt = doc.name
     pi.purchase_order = po.name
     pi.currency = po.currency
+
+	# 🧾 Debug message
+    frappe.msgprint(
+		f"""
+		<b>DEBUG DATE CHECK</b><br>
+		Posting Date: {pi.posting_date}<br>
+		Supplier Invoice (Bill) Date: {pi.bill_date}<br>
+		Due Date: {pi.due_date}<br>
+		"""
+	)
 
     # Copy items
     for item in doc.items:
