@@ -495,14 +495,16 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
     pi.supplier = po.supplier
     pi.company = po.company
     pi.posting_date = doc.posting_date
+    # pi.due_date = add_days(getdate(doc.posting_date), 1)
+    pi.due_date = add_days(nowdate(), 1)
     # pi.due_date = doc.posting_date
     pi.purchase_receipt = doc.name
     pi.purchase_order = po.name
     pi.currency = po.currency
     
-    receipt_date = getdate(doc.posting_date)
+    # receipt_date = getdate(doc.posting_date)
     
-    pi.due_date = add_days(receipt_date, 1)
+    # pi.due_date = add_days(receipt_date, 1)
 
     # Copy items
     for item in doc.items:
