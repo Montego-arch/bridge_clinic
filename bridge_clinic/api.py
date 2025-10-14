@@ -503,7 +503,7 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
     # pi.currency = po.currency
     pi = frappe.new_doc("Purchase Invoice")
 
-    posting_date = getdate(doc.posting_date or nowdate())
+    posting_date = getdate(doc.posting_date)
     bill_date = posting_date
     due_date = add_days(posting_date, 1)
 
@@ -552,7 +552,10 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
             "base_tax_amount": tax.base_tax_amount
         })
 
-    pi.save(ignore_permissions=True)
+    pi.insert(ignore_permissions=True)
+    pi.db_set("posting_date", posting_date)
+    pi.db.set("bill_date", bill_date)
+    pi.db_set("due_date", due_date)
 
     # --- Step 3: Handle Prepayment / Non-Prepayment logic ---
     if payment_type == "Prepayment":
