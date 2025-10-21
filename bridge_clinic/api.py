@@ -251,6 +251,10 @@ def create_po_from_supplier_quotation(doc, method):
         po.supplier = doc.supplier
         po.ref_sq = doc.name  # custom link field in PO
         po.custom_payment_type = "Non-Prepayment"
+        
+        # Match currency and conversion rate with the Supplier Quotation
+        po.currency = doc.currency
+        po.conversion_rate = doc.conversion_rate or 1
         # po.taxes_and_charges = doc.taxes_and_charges
 
         # Copy quotation items into PO
@@ -326,8 +330,8 @@ def create_payment_request_from_po(doc, method):
         pr.grand_total = doc.grand_total or 0
         pr.status = "Draft"
 
-        if frappe.db.exists("Mode of Payment", "Bank"):
-            pr.mode_of_payment = "Bank"
+        if frappe.db.exists("Mode of Payment", "Bank Draft"):
+            pr.mode_of_payment = "Bank Draft"
 
         pr.insert(ignore_permissions=True)
 
