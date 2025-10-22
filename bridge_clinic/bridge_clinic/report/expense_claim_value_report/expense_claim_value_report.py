@@ -10,11 +10,12 @@ def execute(filters=None):
     from_date = filters.get("from_date")
     to_date = filters.get("to_date")
 
+    # Main data query — join parent + child to get expense_type
     data = frappe.db.sql("""
-        SELECT
+        SELECT DISTINCT
             ec.employee_name AS "Requester Name:Data:180",
             ec.name AS "Reference:Link/Expense Claim:150",
-            ec.expense_type AS "Expense Claim Type:Data:200",
+            ecd.expense_type AS "Expense Claim Type:Data:200",
             ec.total_sanctioned_amount AS "Limit:Currency:150",
             CASE WHEN ec.workflow_state IN ('Approved by Line Manager', 'Approved by HR', 'Approved by MD/COO', 'Paid')
                 THEN 'Yes' ELSE 'No' END AS "Line Manager:Data:100",
@@ -23,14 +24,15 @@ def execute(filters=None):
             CASE WHEN ec.workflow_state IN ('Approved by MD/COO', 'Paid')
                 THEN 'Yes' ELSE 'No' END AS "MD/COO:Data:100"
         FROM `tabExpense Claim` ec
+        LEFT JOIN `tabExpense Claim Detail` ecd ON ecd.parent = ec.name
         WHERE ec.posting_date BETWEEN %(from_date)s AND %(to_date)s
         ORDER BY ec.posting_date ASC
     """, {"from_date": from_date, "to_date": to_date}, as_dict=True)
 
-    # Calculate totals
+    # Totals calculation (using the correct workflow states)
     totals = frappe.db.sql("""
         SELECT
-            SUM(CASE WHEN ec.workflow_state IN ('Approved', 'Paid') THEN ec.total_sanctioned_amount ELSE 0 END) AS total_approved,
+            SUM(CASE WHEN ec.workflow_state IN ('Approved by Line Manager', 'Approved by HR', 'Approved by MD/COO', 'Paid') THEN ec.total_sanctioned_amount ELSE 0 END) AS total_approved,
             SUM(CASE WHEN ec.workflow_state = 'Paid' THEN ec.total_sanctioned_amount ELSE 0 END) AS total_paid,
             SUM(CASE WHEN ec.workflow_state = 'Pending HR' THEN ec.total_sanctioned_amount ELSE 0 END) AS total_pending_hr,
             SUM(CASE WHEN ec.workflow_state = 'Pending MD' THEN ec.total_sanctioned_amount ELSE 0 END) AS total_pending_md
@@ -70,3 +72,4 @@ def execute(filters=None):
     ]
 
     return columns, data
+
