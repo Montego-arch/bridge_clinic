@@ -14,7 +14,7 @@ def execute(filters=None):
         SELECT
             ec.employee_name AS "Requester Name:Data:180",
             ec.name AS "Reference:Link/Expense Claim:150",
-            ec.expense_claim_type AS "Expense Claim Type:Data:200",
+            ec.expense_type AS "Expense Claim Type:Data:200",
             ec.total_sanctioned_amount AS "Limit:Currency:150",
             CASE WHEN ec.workflow_state IN ('Approved by Line Manager', 'Approved by HR', 'Approved by MD/COO', 'Paid')
                 THEN 'Yes' ELSE 'No' END AS "Line Manager:Data:100",

@@ -12,55 +12,73 @@ def execute(filters=None):
 
     data = frappe.db.sql("""
         SELECT
-            pr.name AS "PR ID:Link/Payment Request:150",
-            pr.transaction_date AS "PR Date:Date:120",
-            pr.party_type AS "Party Type:Data:120",
-            pr.party AS "Party Name:Data:200",
-            CONCAT_WS(' / ', pr.bank, pr.bank_account_no) AS "Bank Name/Account:Data:200",
-            pr.grand_total AS "Amount:Currency:150",
+            pr.name AS "pr_id",
+            pr.transaction_date AS "pr_date",
+            pr.party_type AS "party_type",
+            pr.party AS "party_name",
+            CONCAT_WS(' / ', pr.bank, pr.bank_account_no) AS "bank_info",
+            pr.grand_total AS "amount",
             CASE 
                 WHEN pr.status = 'Paid' THEN 'Paid'
                 ELSE 'Not Paid'
-            END AS "Status:Data:100"
+            END AS "status"
         FROM `tabPayment Request` pr
         WHERE pr.transaction_date BETWEEN %(from_date)s AND %(to_date)s
         ORDER BY pr.transaction_date ASC
     """, {"from_date": from_date, "to_date": to_date}, as_dict=True)
 
-    # Calculate totals
-    total_paid = sum(d["Amount"] for d in data if d["Status"] == "Paid")
-    total_unpaid = sum(d["Amount"] for d in data if d["Status"] == "Not Paid")
+    # --- Safely calculate totals ---
+    total_paid = sum(d.get("amount", 0) for d in data if d.get("status") == "Paid")
+    total_unpaid = sum(d.get("amount", 0) for d in data if d.get("status") == "Not Paid")
 
-    # Add totals row
+    # --- Append a blank separator row ---
     if data:
         data.append({
-            "PR ID": "",
-            "PR Date": "",
-            "Party Type": "",
-            "Party Name": "",
-            "Bank Name/Account": "TOTALS",
-            "Amount": "",
-            "Status": ""
+            "pr_id": "",
+            "pr_date": "",
+            "party_type": "",
+            "party_name": "",
+            "bank_info": "",
+            "amount": "",
+            "status": ""
+        })
+        # --- Append totals row ---
+        data.append({
+            "pr_id": "",
+            "pr_date": "",
+            "party_type": "",
+            "party_name": "",
+            "bank_info": "TOTALS",
+            "amount": total_paid + total_unpaid,
+            "status": ""
         })
         data.append({
-            "PR ID": "",
-            "PR Date": "",
-            "Party Type": "",
-            "Party Name": "",
-            "Bank Name/Account": f"Paid: {total_paid:,.2f}",
-            "Amount": f"Not Paid: {total_unpaid:,.2f}",
-            "Status": ""
+            "pr_id": "",
+            "pr_date": "",
+            "party_type": "",
+            "party_name": "",
+            "bank_info": f"Paid Total",
+            "amount": total_paid,
+            "status": "Paid"
+        })
+        data.append({
+            "pr_id": "",
+            "pr_date": "",
+            "party_type": "",
+            "party_name": "",
+            "bank_info": f"Unpaid Total",
+            "amount": total_unpaid,
+            "status": "Not Paid"
         })
 
     columns = [
-        {"label": "PR ID", "fieldname": "PR ID", "fieldtype": "Link", "options": "Payment Request", "width": 150},
-        {"label": "PR Date", "fieldname": "PR Date", "fieldtype": "Date", "width": 120},
-        {"label": "Party Type", "fieldname": "Party Type", "fieldtype": "Data", "width": 120},
-        {"label": "Party Name", "fieldname": "Party Name", "fieldtype": "Data", "width": 200},
-        {"label": "Bank Name/Account", "fieldname": "Bank Name/Account", "fieldtype": "Data", "width": 200},
-        {"label": "Amount", "fieldname": "Amount", "fieldtype": "Currency", "width": 150},
-        {"label": "Status", "fieldname": "Status", "fieldtype": "Data", "width": 100},
+        {"label": "PR ID", "fieldname": "pr_id", "fieldtype": "Link", "options": "Payment Request", "width": 150},
+        {"label": "PR Date", "fieldname": "pr_date", "fieldtype": "Date", "width": 120},
+        {"label": "Party Type", "fieldname": "party_type", "fieldtype": "Data", "width": 120},
+        {"label": "Party Name", "fieldname": "party_name", "fieldtype": "Data", "width": 200},
+        {"label": "Bank Name/Account", "fieldname": "bank_info", "fieldtype": "Data", "width": 200},
+        {"label": "Amount", "fieldname": "amount", "fieldtype": "Currency", "width": 150},
+        {"label": "Status", "fieldname": "status", "fieldtype": "Data", "width": 100},
     ]
 
     return columns, data
-
