@@ -134,6 +134,11 @@ app_include_js = "/assets/bridge_clinic/js/expense_claim_detail.js"
 # ---------------
 # Override standard doctype classes
 
+scheduler_events = {
+    "daily": ["bridge_clinic.email_notifications.escalate_stuck_approvals"]
+}
+
+
 override_doctype_class = {
 	# "ToDo": "custom_app.overrides.CustomToDo",
 	"Payment Request": "bridge_clinic.overrides.payment_request.CustomPaymentRequest",
@@ -176,9 +181,13 @@ doc_events = {
 		]
 
     },
-	    "Material Request": {
+	"Material Request": {
 		"validate": "bridge_clinic.api.fill_suppliers_in_material_request",
-        "on_submit": "bridge_clinic.api.create_rfq_from_material_request"
+		"on_update_after_submit": "bridge_clinic.email_notifications.notify_on_mr_approval",
+		"on_submit": [
+			"bridge_clinic.api.create_rfq_from_material_request",
+			"bridge_clinic.email_notifications.notify_on_mr_submit"
+		]
     },
 	#     "Request for Quotation": {
     #     "on_submit": "bridge_clinic.api.create_po_from_rfq"
@@ -196,30 +205,38 @@ doc_events = {
 	    "Supplier Quotation": {
         "on_submit": [
 			"bridge_clinic.api.create_po_from_supplier_quotation",
-			"bridge_clinic.api.update_mr_workflow_state_from_sq"
+			"bridge_clinic.api.update_mr_workflow_state_from_sq",
+			"bridge_clinic.email_notifications.notify_on_sq_submit"
 		],
-		"after_insert": "bridge_clinic.api.update_mr_workflow_state_on_sq_creation",
-
+		"after_insert": [
+			"bridge_clinic.api.update_mr_workflow_state_on_sq_creation",
+			"bridge_clinic.email_notifications.notify_on_sq_creation",
+		],
+		"on_update_after_submit": "bridge_clinic.email_notifications.notify_on_sq_approval"
     }
 	,
 	    "Purchase Order": {
         "on_submit": [
 			"bridge_clinic.api.create_payment_request_from_po",
 			"bridge_clinic.api.update_mr_workflow_state_from_po"
-		]
+		],
+		"after_insert": "bridge_clinic.email_notifications.notify_on_po_creation",
+        "on_update_after_submit": "bridge_clinic.email_notifications.notify_on_po_approval",
     },
 	    "Payment Request": {
         "on_submit": [
 			"bridge_clinic.api.update_expense_status_on_pr",
 			"bridge_clinic.api.create_payment_entry_from_payment_request",
 			"bridge_clinic.api.update_mr_workflow_state_from_payment_request"
-		]
+		],
+		"after_insert": "bridge_clinic.email_notifications.notify_on_payment_request_creation",
     },
 	    "Supplier": {
         "validate": "bridge_clinic.api.update_item_group_suppliers"
     },
 	    "Request for Quotation": {
-        "validate": "bridge_clinic.api.update_mr_workflow_state_from_rfq"
+        "validate": "bridge_clinic.api.update_mr_workflow_state_from_rfq",
+		"on_submit": "bridge_clinic.email_notifications.notify_on_rfq_submit",
     },
 }
 
