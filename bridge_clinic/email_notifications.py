@@ -8,21 +8,104 @@ DEFAULT_ESCALATION_EMAILS = [
     "financehelpdesk@thebridgeclinic.com",
 ]
 
+# Utility to get all user emails for a given role
+def get_emails_by_role(role):
+    users = frappe.get_all(
+        "Has Role",
+        filters={"role": role},
+        fields=["parent"],
+    )
+    emails = []
+    for u in users:
+        email = frappe.db.get_value("User", u.parent, "email")
+        if email and email not in emails:
+            emails.append(email)
+    return emails
+
+
 def send_email(recipients, subject, message):
-    """Send email using ERPNext's Email Queue."""
-    if not recipients:
-        return
+    """Wrapper for Frappe email send"""
     frappe.sendmail(
         recipients=recipients,
         subject=subject,
         message=message,
-        now=True
     )
 
-def get_requester_email(material_request):
-    """Get requester email based on the MR’s owner or 'requested_by' field."""
-    requester = frappe.db.get_value("Material Request", material_request, "owner")
-    return requester if requester else None
+
+def get_requester_email(reference_name):
+    """Fetch requester email based on linked document"""
+    if not reference_name:
+        return None
+    requester = frappe.db.get_value("Material Request", reference_name, "owner")
+    return frappe.db.get_value("User", requester, "email") if requester else None
+
+
+# -------------------------
+# Notification Functions
+# -------------------------
+
+def notify_on_rfq_submit(doc, method):
+    requester_email = get_requester_email(doc.material_request)
+    admin_emails = get_emails_by_role("Admin Officer")
+
+    subject = f"Request for Quotation {doc.name} Submitted"
+    message = f"""
+        <p>RFQ <b>{doc.name}</b> has been submitted for Material Request <b>{doc.material_request}</b>.</p>
+        <p><a href='{get_url(doc.get_url())}'>View RFQ</a></p>
+    """
+
+    recipients = (admin_emails or []) + ([requester_email] if requester_email else [])
+    send_email(recipients, subject, message)
+
+
+def notify_on_sq_creation(doc, method):
+    requester_email = get_requester_email(doc.material_request)
+    admin_emails = get_emails_by_role("Admin Officer")
+
+    subject = f"Supplier Quotation {doc.name} Created"
+    message = f"""
+        <p>Supplier Quotation <b>{doc.name}</b> has been created for Material Request <b>{doc.material_request}</b>.</p>
+    """
+
+    recipients = (admin_emails or []) + ([requester_email] if requester_email else [])
+    send_email(recipients, subject, message)
+
+
+def notify_on_sq_submit(doc, method):
+    business_manager_emails = get_emails_by_role("Business Manager")
+
+    subject = f"Supplier Quotation {doc.name} Submitted for Approval"
+    message = f"""
+        <p>Supplier Quotation <b>{doc.name}</b> has been submitted for your review.</p>
+    """
+
+    send_email(business_manager_emails, subject, message)
+
+
+def notify_on_payment_request_creation(doc, method):
+    requester_email = get_requester_email(doc.reference_name)
+    accounts_emails = get_emails_by_role("Accounts User")
+
+    subject = f"Payment Request {doc.name} Created"
+    message = f"""
+        <p>Payment Request <b>{doc.name}</b> has been created for Purchase Order <b>{doc.reference_name}</b>.</p>
+    """
+
+    recipients = (accounts_emails or []) + ([requester_email] if requester_email else [])
+    send_email(recipients, subject, message)
+
+
+def notify_on_po_creation(doc, method):
+    requester_email = get_requester_email(doc.ref_sq)
+    accounts_emails = get_emails_by_role("Accounts User")
+
+    subject = f"Purchase Order {doc.name} Created"
+    message = f"""
+        <p>Purchase Order <b>{doc.name}</b> has been created from Supplier Quotation <b>{doc.ref_sq}</b>.</p>
+    """
+
+    recipients = (accounts_emails or []) + ([requester_email] if requester_email else [])
+    send_email(recipients, subject, message)
 
 
 def notify_on_mr_submit(doc, method):
@@ -51,41 +134,6 @@ def notify_on_mr_approval(doc, method):
     send_email([requester_email], subject, message)
 
 
-def notify_on_rfq_submit(doc, method):
-    requester_email = get_requester_email(doc.material_request)
-    admin_email = frappe.db.get_single_value("Bridge Clinic Settings", "admin_email") or "admin@thebridgeclinic.com"
-
-    subject = f"Request for Quotation {doc.name} Submitted"
-    message = f"""
-        <p>RFQ <b>{doc.name}</b> has been submitted for Material Request <b>{doc.material_request}</b>.</p>
-        <p><a href='{get_url(doc.get_url())}'>View RFQ</a></p>
-    """
-
-    send_email([requester_email, admin_email], subject, message)
-
-
-
-def notify_on_sq_creation(doc, method):
-    requester_email = get_requester_email(doc.material_request)
-    admin_email = "admin@thebridgeclinic.com"
-
-    subject = f"Supplier Quotation {doc.name} Created"
-    message = f"""
-        <p>Supplier Quotation <b>{doc.name}</b> has been created for Material Request <b>{doc.material_request}</b>.</p>
-    """
-
-    send_email([requester_email, admin_email], subject, message)
-
-
-def notify_on_sq_submit(doc, method):
-    business_manager_email = frappe.db.get_single_value("Bridge Clinic Settings", "business_manager_email")
-
-    subject = f"Supplier Quotation {doc.name} Submitted for Approval"
-    message = f"""
-        <p>Supplier Quotation <b>{doc.name}</b> has been submitted for your review.</p>
-    """
-
-    send_email([business_manager_email], subject, message)
 
 
 def notify_on_sq_approval(doc, method):
@@ -99,17 +147,6 @@ def notify_on_sq_approval(doc, method):
     send_email([requester_email], subject, message)
 
 
-def notify_on_po_creation(doc, method):
-    requester_email = get_requester_email(doc.ref_sq)
-    accounts_email = "accounts@thebridgeclinic.com"
-
-    subject = f"Purchase Order {doc.name} Created"
-    message = f"""
-        <p>Purchase Order <b>{doc.name}</b> has been created from Supplier Quotation <b>{doc.ref_sq}</b>.</p>
-    """
-
-    send_email([requester_email, accounts_email], subject, message)
-
 
 def notify_on_po_approval(doc, method):
     next_approver = frappe.db.get_value("Workflow Action", {"reference_name": doc.name, "status": "Pending"}, "user")
@@ -122,17 +159,6 @@ def notify_on_po_approval(doc, method):
 
     send_email([requester_email, next_approver], subject, message)
 
-
-def notify_on_payment_request_creation(doc, method):
-    requester_email = get_requester_email(doc.reference_name)
-    accounts_email = "accounts@thebridgeclinic.com"
-
-    subject = f"Payment Request {doc.name} Created"
-    message = f"""
-        <p>Payment Request <b>{doc.name}</b> has been created for Purchase Order <b>{doc.reference_name}</b>.</p>
-    """
-
-    send_email([requester_email, accounts_email], subject, message)
 
 
 
