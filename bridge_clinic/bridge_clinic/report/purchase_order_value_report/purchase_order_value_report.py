@@ -41,7 +41,7 @@ def get_data(from_date, to_date):
                 poi.cost_center AS cost_center,
                 i.item_group AS item_group,
                 s.supplier_group AS supplier_group,
-                po.supplier AS supplier_name,
+                po.supplier_name AS supplier_name,
 
                 CASE 
                     WHEN po.workflow_state IN ('Pending Head of Finance Approval', 'Approved by Head of Finance', 'Paid', 'Received') 
@@ -78,7 +78,7 @@ def get_data(from_date, to_date):
                 '' AS head_of_finance,
                 '' AS auditor,
                 '' AS md_coo,
-                SUM(po.total) AS total_value
+                SUM(po.grand_total) AS total_value
             FROM `tabPurchase Order` po
             WHERE po.transaction_date BETWEEN %(from_date)s AND %(to_date)s
         )
