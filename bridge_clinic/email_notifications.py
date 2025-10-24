@@ -73,7 +73,7 @@ def get_requester_email_from_sq(sq_name):
 def debug_log(context, recipients, subject):
     """Helper to print debug info."""
     frappe.msgprint(f"""
-        <b>[DEBUG]</b><br>
+        <b>[Message]</b><br>
         Context: {context}<br>
         Recipients: {recipients}<br>
         Subject: {subject}
