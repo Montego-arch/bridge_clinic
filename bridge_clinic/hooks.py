@@ -230,6 +230,7 @@ doc_events = {
 			"bridge_clinic.api.update_mr_workflow_state_from_payment_request"
 		],
 		"after_insert": "bridge_clinic.email_notifications.notify_on_payment_request_creation",
+		"on_update_after_submit": "bridge_clinic.email_notifications.notify_on_payment_request_approval",
     },
 	    "Supplier": {
         "validate": "bridge_clinic.api.update_item_group_suppliers"

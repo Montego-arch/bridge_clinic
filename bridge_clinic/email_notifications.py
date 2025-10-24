@@ -507,22 +507,73 @@ def notify_on_mr_approval(doc, method):
 
 
 
+# def escalate_stuck_approvals():
+#     cutoff = now_datetime() - timedelta(days=3)
+#     stuck_actions = frappe.get_all("Workflow Action",
+#         filters={"status": "Pending", "modified": ("<", cutoff)},
+#         fields=["reference_doctype", "reference_name", "user"]
+#     )
+
+#     for action in stuck_actions:
+#         doc_url = get_url(f"/app/{frappe.scrub(action.reference_doctype)}/{action.reference_name}")
+#         requester = frappe.db.get_value("Material Request", {"name": action.reference_name}, "owner")
+
+#         recipients = DEFAULT_ESCALATION_EMAILS + [requester]
+#         subject = f"⚠️ Approval Pending for {action.reference_doctype} {action.reference_name}"
+#         message = f"""
+#             <p>The document <b>{action.reference_doctype} {action.reference_name}</b> has been pending approval for more than 3 days.</p>
+#             <p><a href='{doc_url}'>View Document</a></p>
+#         """
+
+#         send_email(recipients, subject, message)
+
+
 def escalate_stuck_approvals():
+    """Escalate any Workflow Actions pending for more than 3 days."""
     cutoff = now_datetime() - timedelta(days=3)
-    stuck_actions = frappe.get_all("Workflow Action",
+    stuck_actions = frappe.get_all(
+        "Workflow Action",
         filters={"status": "Pending", "modified": ("<", cutoff)},
         fields=["reference_doctype", "reference_name", "user"]
     )
 
     for action in stuck_actions:
         doc_url = get_url(f"/app/{frappe.scrub(action.reference_doctype)}/{action.reference_name}")
-        requester = frappe.db.get_value("Material Request", {"name": action.reference_name}, "owner")
+        requester_email = None
 
-        recipients = DEFAULT_ESCALATION_EMAILS + [requester]
+        # --- Identify requester based on document type ---
+        if action.reference_doctype == "Material Request":
+            requester = frappe.db.get_value("Material Request", action.reference_name, "owner")
+            requester_email = frappe.db.get_value("User", requester, "email") if requester else None
+
+        elif action.reference_doctype == "Supplier Quotation":
+            mr = frappe.db.get_value("Supplier Quotation Item", {"parent": action.reference_name}, "material_request")
+            if mr:
+                requester = frappe.db.get_value("Material Request", mr, "owner")
+                requester_email = frappe.db.get_value("User", requester, "email") if requester else None
+
+        elif action.reference_doctype == "Purchase Order":
+            ref_sq = frappe.db.get_value("Purchase Order", action.reference_name, "ref_sq")
+            requester_email = get_requester_email_from_sq(ref_sq)
+
+        elif action.reference_doctype == "Payment Request":
+            ref_po = frappe.db.get_value("Payment Request", action.reference_name, "reference_name")
+            if ref_po:
+                ref_sq = frappe.db.get_value("Purchase Order", ref_po, "ref_sq")
+                requester_email = get_requester_email_from_sq(ref_sq)
+
+        # --- Fallback: if no requester found ---
+        if not requester_email:
+            requester_email = frappe.db.get_value("User", action.user, "email")
+
+        # --- Compose and send email ---
+        recipients = list(filter(None, DEFAULT_ESCALATION_EMAILS + [requester_email]))
         subject = f"⚠️ Approval Pending for {action.reference_doctype} {action.reference_name}"
         message = f"""
             <p>The document <b>{action.reference_doctype} {action.reference_name}</b> has been pending approval for more than 3 days.</p>
             <p><a href='{doc_url}'>View Document</a></p>
         """
 
-        send_email(recipients, subject, message)
+        debug_log("escalate_stuck_approvals", recipients, subject)
+        if recipients:
+            send_email(recipients, subject, message)
