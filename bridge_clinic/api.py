@@ -197,6 +197,7 @@ def create_rfq_from_material_request(doc, method):
 def create_pi_from_pr(doc, method):
     """
     On submission of Purchase Receipt, generate a draft Purchase Invoice.
+    Adding cost center to child table
     """
     try:
         # Avoid duplicates
@@ -217,7 +218,8 @@ def create_pi_from_pr(doc, method):
                 "qty": item.qty,
                 "rate": item.rate,
                 "amount": item.amount,
-                "purchase_receipt": doc.name
+                "purchase_receipt": doc.name,
+                "cost_center": item.cost_center
             })
 
         pi.insert(ignore_permissions=True)
@@ -403,15 +405,6 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
     pi.purchase_order = po.name
     pi.currency = po.currency
 
-	# Debug message
-    frappe.msgprint(
-		f"""
-		<b>DEBUG DATE CHECK</b><br>
-		Posting Date: {pi.posting_date}<br>
-		Supplier Invoice (Bill) Date: {pi.bill_date}<br>
-		Due Date: {pi.due_date}<br>
-		"""
-	)
 
     # Copy items
     for item in doc.items:
