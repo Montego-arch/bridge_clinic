@@ -458,6 +458,7 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
             "party_name": pi.supplier_name,
             "currency": pi.currency,
             "grand_total": outstanding,
+            "cost_center": pi.cost_center,
             "amount": outstanding,
             "reference_doctype": "Purchase Invoice",
             "reference_name": pi.name,
@@ -489,6 +490,7 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
             pr_tax.party = doc.supplier
             pr_tax.party_name = doc.supplier_name
             pr_tax.transaction_date = nowdate()
+            pr_tax.cost_center = pi.cost_center
             pr_tax.currency = doc.currency
 
             # 💰 Only the tax amount
