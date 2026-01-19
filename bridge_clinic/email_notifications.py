@@ -87,15 +87,21 @@ def build_email_body(greeting: str, intro: str, table_rows: List[tuple], action_
 #  MATERIAL REQUEST NOTIFICATIONS
 # ============================================
 
+def get_cost_center_from_items(doc) -> str:
+    if hasattr(doc, "items") and doc.items:
+        return doc.items[0].cost_center or "N/A"
+    return "N/A"
+
 def notify_on_mr_submit(doc, method):
     requester = get_requester_info(doc.owner)
     line_mgr = get_line_manager_info(doc.owner)
+    cost_center = get_cost_center_from_items(doc)
     
     rows = [
         ("MAT-ID", doc.name),
         ("Created By", requester["name"]),
         ("Created Date", str(getdate(doc.creation))),
-        ("Cost Centre", doc.cost_center or "N/A"),
+        ("Cost Centre", cost_center),
         ("No of Items", str(len(doc.items))),
         ("Request Link", f"<a href='{get_doc_link('Material Request', doc.name)}'>{doc.name}</a>"),
         ("Description", doc.description or "N/A"),
@@ -130,6 +136,7 @@ def notify_on_rfq_submit(doc, method):
     mr_owner = frappe.db.get_value("Material Request", mr_name, "owner") if mr_name else None
     requester = get_requester_info(mr_owner or doc.owner)
     line_mgr = get_line_manager_info(mr_owner or doc.owner)
+    cost_center = get_cost_center_from_items(doc)
     
     suppliers = ", ".join([s.supplier for s in doc.suppliers]) if doc.suppliers else "N/A"
     
@@ -138,7 +145,7 @@ def notify_on_rfq_submit(doc, method):
         ("MAT ID", mr_name or "N/A"),
         ("Created By", requester["name"]),
         ("Created Date", str(getdate(doc.creation))),
-        ("Cost Centre", doc.cost_center or "N/A"),
+        ("Cost Centre", cost_center),
         ("No of Items", str(len(doc.items))),
         ("Request Link", f"<a href='{get_doc_link('Request for Quotation', doc.name)}'>{doc.name}</a>"),
         ("Suppliers", suppliers),
@@ -158,6 +165,7 @@ def notify_on_sq_creation(doc, method):
     mr_owner = frappe.db.get_value("Material Request", mr_name, "owner") if mr_name else None
     requester = get_requester_info(mr_owner or doc.owner)
     line_mgr = get_line_manager_info(mr_owner or doc.owner)
+    cost_center = get_cost_center_from_items(doc)
     
     rows = [
         ("SQ ID", doc.name),
@@ -165,7 +173,7 @@ def notify_on_sq_creation(doc, method):
         ("MAT ID", mr_name or "N/A"),
         ("Created By", requester["name"]),
         ("Created Date", str(getdate(doc.creation))),
-        ("Cost Centre", doc.cost_center or "N/A"),
+        ("Cost Centre", cost_center),
         ("No of Items", str(len(doc.items))),
         ("Request Link", f"<a href='{get_doc_link('Supplier Quotation', doc.name)}'>{doc.name}</a>"),
         ("Supplier", doc.supplier),
@@ -182,6 +190,7 @@ def notify_on_sq_submit(doc, method):
     mr_owner = frappe.db.get_value("Material Request", mr_name, "owner") if mr_name else None
     requester = get_requester_info(mr_owner or doc.owner)
     biz_mgrs = get_approver_by_role("Business Manager")
+    cost_center = get_cost_center_from_items(doc)
     
     rows = [
         ("SQ ID", doc.name),
@@ -189,7 +198,7 @@ def notify_on_sq_submit(doc, method):
         ("MAT ID", mr_name or "N/A"),
         ("Created By", requester["name"]),
         ("Created Date", str(getdate(doc.creation))),
-        ("Cost Centre", doc.cost_center or "N/A"),
+        ("Cost Centre", cost_center),
         ("No of Items", str(len(doc.items))),
         ("Request Link", f"<a href='{get_doc_link('Supplier Quotation', doc.name)}'>{doc.name}</a>"),
         ("Supplier", doc.supplier),
@@ -403,7 +412,6 @@ def escalate_stuck_approvals():
         message = f"<p>The document <b>{action.reference_doctype} {action.reference_name}</b> has been pending approval for more than 3 days.</p><p><a href='{doc_url}'>View Document</a></p>"
         
         send_email(recipients, subject, message)
-        
 
 
 
