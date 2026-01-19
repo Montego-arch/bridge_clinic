@@ -104,7 +104,7 @@ def notify_on_mr_submit(doc, method):
         ("Cost Centre", cost_center),
         ("No of Items", str(len(doc.items))),
         ("Request Link", f"<a href='{get_doc_link('Material Request', doc.name)}'>{doc.name}</a>"),
-        ("Description", doc.description or "N/A"),
+        ("Description", doc.custom_description or "N/A"),
     ]
     
     # Email to Requester
