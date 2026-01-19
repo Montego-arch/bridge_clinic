@@ -10,12 +10,15 @@ DEFAULT_ESCALATION_EMAILS = ["ithelpdesk@thebridgeclinic.com", "financehelpdesk@
 #  CORE UTILITIES
 # ============================================
 
+EXCLUDED_EMAILS = ["pamajayi101@gmail.com"]
+
 def get_emails_by_role(role: str) -> List[str]:
     users = frappe.get_all("Has Role", filters={"role": role}, fields=["parent"])
-    return list({frappe.db.get_value("User", u.parent, "email") for u in users if frappe.db.get_value("User", u.parent, "email")})
+    emails = {frappe.db.get_value("User", u.parent, "email") for u in users if frappe.db.get_value("User", u.parent, "email")}
+    return [e for e in emails if e and e.lower() not in [x.lower() for x in EXCLUDED_EMAILS]]
 
 def send_email(recipients: List[str], subject: str, message: str):
-    recipients = list(filter(None, recipients))
+    recipients = [r for r in recipients if r and r.lower() not in [x.lower() for x in EXCLUDED_EMAILS]]
     if recipients:
         frappe.sendmail(recipients=recipients, subject=subject, message=message)
 
