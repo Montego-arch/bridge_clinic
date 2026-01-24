@@ -89,7 +89,7 @@ def build_email_body(greeting: str, intro: str, table_rows: List[tuple], action_
 
 def get_cost_center_from_items(doc) -> str:
     if hasattr(doc, "items") and doc.items:
-        return doc.items[0].cost_center or "N/A"
+        return getattr(doc.items[0], "cost_center", None) or "N/A"
     return "N/A"
 
 def notify_on_mr_submit(doc, method):
