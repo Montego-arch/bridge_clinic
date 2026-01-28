@@ -64,10 +64,21 @@ def get_linked_sq_from_po(po_name: str) -> Optional[str]:
     return frappe.db.get_value("Purchase Order", po_name, "ref_sq")
 
 def get_linked_po_from_pr(pr_doc) -> Optional[str]:
+    """Get linked Purchase Order from Payment Request document."""
+    if not pr_doc.reference_doctype or not pr_doc.reference_name:
+        return None
+    
     if pr_doc.reference_doctype == "Purchase Order":
         return pr_doc.reference_name
+    
     if pr_doc.reference_doctype == "Purchase Invoice":
-        return frappe.db.get_value("Purchase Invoice", pr_doc.reference_name, "purchase_order")
+        # Purchase Invoice stores purchase_order in the ITEM child table, not at header level
+        return frappe.db.get_value(
+            "Purchase Invoice Item", 
+            {"parent": pr_doc.reference_name}, 
+            "purchase_order"
+        )
+    
     return None
 
 # ============================================
