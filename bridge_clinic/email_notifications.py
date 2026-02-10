@@ -414,7 +414,7 @@ def escalate_stuck_approvals():
     cutoff = now_datetime() - timedelta(days=3)
     stuck = frappe.get_all(
         "Workflow Action",
-        filters={"status": "Pending", "creation": ("<", cutoff)},
+        filters={"status": "Open", "creation": ("<", cutoff)},
         fields=["reference_doctype", "reference_name", "user", "creation"]
     )
 
