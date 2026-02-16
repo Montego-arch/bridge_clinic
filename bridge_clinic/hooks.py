@@ -263,13 +263,13 @@ doc_events = {
 # }
 
 
-scheduler_events = {
-    "cron": {
-        "0 8 * * *": [  # Runs daily at 8:00 AM
-            "bridge_clinic.email_notifications.escalate_stuck_approvals"
-        ]
-    }
-}
+# scheduler_events = {
+#     "cron": {
+#         "0 8 * * *": [  # Runs daily at 8:00 AM
+#             "bridge_clinic.email_notifications.escalate_stuck_approvals"
+#         ]
+#     }
+# }
 
 # Testing
 # -------
