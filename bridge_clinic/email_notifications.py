@@ -27,7 +27,7 @@ def debug_log(context: str, recipients: List[str], subject: str):
         frappe.msgprint(f"<b>[DEBUG]</b><br>Context: {context}<br>Recipients: {', '.join(recipients) if recipients else 'None'}<br>Subject: {subject}")
 
 def get_doc_link(doctype: str, name: str) -> str:
-    return get_url(f"/app/{frappe.scrub(doctype)}/{name}")
+    return frappe.utils.get_url_to_form(doctype, name)
 
 def get_requester_info(user: str) -> dict:
     if not user:
