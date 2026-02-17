@@ -410,141 +410,7 @@ def notify_on_payment_request_approval(doc, method):
 #  ESCALATION
 # ============================================
 
-# def escalate_stuck_approvals():
-#     print("=" * 50)
-#     print("Starting escalate_stuck_approvals...")
-
-#     cutoff = now_datetime() - timedelta(days=3)
-#     print(f"Cutoff datetime: {cutoff}")
-
-#     # state -> approver role mapping per doctype
-#     pending_states = {
-#         "Material Request": {
-#             "Line Manager Pending": "Line Manager",
-#         },
-#         "Supplier Quotation": {
-#             "Business Manager Pending": "Business Manager",
-#         },
-#         "Purchase Receipt": {
-#             "Quality Control Pending": "Quality Control",
-#         },
-#         "Expense Claim": {
-#             "Line Manager Pending": "Line Manager",
-#             "HR Pending": "HR Manager",
-#             "Pending MD Approval": "Managing Director",
-#         },
-#         "Purchase Order": {
-#             "HOF Pending": "Accounts Manager",
-#             "Auditor Pending": "Auditor",
-#             "COO Pending": "COO",
-#             "Pending MD Approval": "Managing Director",
-#         },
-#         "Payment Request": {
-#             "Auditor Pending": "Auditor",
-#             "COO Pending": "COO",
-#             "Pending MD Approval": "Managing Director",
-#             "Pending EVC": "EVC",
-#         },
-#         "Leave Application": {
-#             "Line Manager Pending": "Line Manager",
-#             "Business Manager Pending": "Business Manager",
-#             "COO Pending": "COO",
-#             "HR Pending": "HR Manager",
-#         },
-#     }
-
-#     total_processed = 0
-
-#     for doctype, state_role_map in pending_states.items():
-#         states = list(state_role_map.keys())
-
-#         try:
-#             stuck = frappe.get_all(
-#                 doctype,
-#                 filters={
-#                     "workflow_state": ["in", states],
-#                     "modified": ("<=", cutoff),
-#                     "docstatus": 0
-#                 },
-#                 fields=["name", "owner", "workflow_state", "creation", "modified"]
-#             )
-#         except Exception as e:
-#             print(f"\n{doctype}: SKIPPED - {e}")
-#             continue
-
-#         print(f"\n{doctype}: Found {len(stuck)} stuck in {states}")
-
-#         for doc in stuck:
-#             print(f"  - {doc.name} | State: {doc.workflow_state} | Since: {doc.modified}")
-
-#             doc_url = get_doc_link(doctype, doc.name)
-#             days_pending = (now_datetime() - doc.modified).days
-#             requester = get_requester_info(doc.owner)
-
-#             # Get the approver role for this specific state
-#             approver_role = state_role_map.get(doc.workflow_state)
-
-#             # For "Line Manager" state, get the owner's line manager directly
-#             if approver_role == "Line Manager":
-#                 approver = get_line_manager_info(doc.owner)
-#                 approver_emails = [approver["email"]] if approver["email"] else []
-#                 approver_label = approver["name"] or "Line Manager"
-#             else:
-#                 approver_emails = get_emails_by_role(approver_role)
-#                 approver_label = approver_role
-
-#             print(f"  Approver Role: {approver_role} | Emails: {approver_emails}")
-
-#             rows = [
-#                 ("Document Type", doctype),
-#                 ("Document ID", f"<a href='{doc_url}'>{doc.name}</a>"),
-#                 ("Status", doc.workflow_state),
-#                 ("Pending Since", f"{days_pending} days"),
-#                 ("Requested By", requester["name"]),
-#                 ("Pending With", approver_label),
-#             ]
-
-#             # Notify the approver(s)
-#             if approver_emails:
-#                 msg = build_email_body(
-#                     f"Dear {approver_label}",
-#                     f"The following document has been awaiting your approval for <b>{days_pending} days</b>. Please take action at your earliest convenience:",
-#                     rows,
-#                     "Click on the document link above to review and approve on ERPNext."
-#                 )
-#                 print(f"  Sending reminder to: {approver_emails}")
-#                 send_email(approver_emails, f"⚠️ Reminder: {doctype} {doc.name} Pending Your Approval ({days_pending} days)", msg)
-#             else:
-#                 print(f"  WARNING: No approver emails found for role '{approver_role}'")
-
-#             # Notify escalation contacts
-#             print(f"  Sending escalation to: {DEFAULT_ESCALATION_EMAILS}")
-#             escalation_msg = build_email_body(
-#                 "Dear Team",
-#                 f"The following document has been stuck in approval for <b>{days_pending} days</b>:",
-#                 rows
-#             )
-#             send_email(DEFAULT_ESCALATION_EMAILS, f"⚠️ Escalation: {doctype} {doc.name} Pending {days_pending} Days", escalation_msg)
-
-#             total_processed += 1
-
-#     print(f"\n{'=' * 50}")
-#     print(f"Finished. Processed {total_processed} stuck approvals.")
-
-
-
-
-
-def get_doc_link(doctype: str, name: str) -> str:
-    slug = frappe.scrub(doctype).replace("_", "-")
-    return get_url(f"/app/{slug}/{name}")
-
-
 def escalate_stuck_approvals():
-    # --- TEST MODE: Remove after testing ---
-    TEST_EMAIL = "support@convergenix.ng"
-    # ----------------------------------------
-
     print("=" * 50)
     print("Starting escalate_stuck_approvals...")
 
@@ -638,7 +504,7 @@ def escalate_stuck_approvals():
                 ("Pending With", approver_label),
             ]
 
-            # Notify the approver(s) — TEST MODE: sending to TEST_EMAIL only
+            # Notify the approver(s)
             if approver_emails:
                 msg = build_email_body(
                     f"Dear {approver_label}",
@@ -646,19 +512,19 @@ def escalate_stuck_approvals():
                     rows,
                     "Click on the document link above to review and approve on ERPNext."
                 )
-                print(f"  Sending reminder to: {[TEST_EMAIL]} (original: {approver_emails})")
-                send_email([TEST_EMAIL], f"⚠️ Reminder: {doctype} {doc.name} Pending Your Approval ({days_pending} days)", msg)
+                print(f"  Sending reminder to: {approver_emails}")
+                send_email(approver_emails, f"⚠️ Reminder: {doctype} {doc.name} Pending Your Approval ({days_pending} days)", msg)
             else:
                 print(f"  WARNING: No approver emails found for role '{approver_role}'")
 
-            # Notify escalation contacts — TEST MODE: sending to TEST_EMAIL only
-            print(f"  Sending escalation to: {[TEST_EMAIL]} (original: {DEFAULT_ESCALATION_EMAILS})")
+            # Notify escalation contacts
+            print(f"  Sending escalation to: {DEFAULT_ESCALATION_EMAILS}")
             escalation_msg = build_email_body(
                 "Dear Team",
                 f"The following document has been stuck in approval for <b>{days_pending} days</b>:",
                 rows
             )
-            send_email([TEST_EMAIL], f"⚠️ Escalation: {doctype} {doc.name} Pending {days_pending} Days", escalation_msg)
+            send_email(DEFAULT_ESCALATION_EMAILS, f"⚠️ Escalation: {doctype} {doc.name} Pending {days_pending} Days", escalation_msg)
 
             total_processed += 1
 
