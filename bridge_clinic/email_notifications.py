@@ -26,8 +26,12 @@ def debug_log(context: str, recipients: List[str], subject: str):
     if DEBUG_MODE:
         frappe.msgprint(f"<b>[DEBUG]</b><br>Context: {context}<br>Recipients: {', '.join(recipients) if recipients else 'None'}<br>Subject: {subject}")
 
+# def get_doc_link(doctype: str, name: str) -> str:
+#     return frappe.utils.get_url_to_form(doctype, name)
+
 def get_doc_link(doctype: str, name: str) -> str:
-    return frappe.utils.get_url_to_form(doctype, name)
+    slug = frappe.scrub(doctype).replace("_", "-")
+    return get_url(f"/app/{slug}/{name}")
 
 def get_requester_info(user: str) -> dict:
     if not user:
