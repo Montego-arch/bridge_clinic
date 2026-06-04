@@ -6,16 +6,31 @@ from typing import List, Optional
 DEBUG_MODE = False
 DEFAULT_ESCALATION_EMAILS = ["ithelpdesk@thebridgeclinic.com", "financehelpdesk@thebridgeclinic.com"]
 
+# All notifications in this module are for Bridge Clinic Limited only.
+# The site hosts multiple companies; documents from other companies must not
+# trigger emails, and role-based recipients must belong to this company.
+TARGET_COMPANY = "Bridge Clinic Limited"
+
 # ============================================
 #  CORE UTILITIES
 # ============================================
 
 EXCLUDED_EMAILS = ["pamajayi101@gmail.com"]
 
+def is_target_company_doc(doc) -> bool:
+    return getattr(doc, "company", None) == TARGET_COMPANY
+
 def get_emails_by_role(role: str) -> List[str]:
-    users = frappe.get_all("Has Role", filters={"role": role}, fields=["parent"])
-    emails = {frappe.db.get_value("User", u.parent, "email") for u in users if frappe.db.get_value("User", u.parent, "email")}
-    return [e for e in emails if e and e.lower() not in [x.lower() for x in EXCLUDED_EMAILS]]
+    users = frappe.get_all("Has Role", filters={"role": role, "parenttype": "User"}, fields=["parent"])
+    emails = set()
+    for u in users:
+        # Only users who belong to Bridge Clinic Limited (active employee there)
+        if not frappe.db.exists("Employee", {"user_id": u.parent, "company": TARGET_COMPANY, "status": "Active"}):
+            continue
+        email = frappe.db.get_value("User", u.parent, "email")
+        if email:
+            emails.add(email)
+    return [e for e in emails if e.lower() not in [x.lower() for x in EXCLUDED_EMAILS]]
 
 def send_email(recipients: List[str], subject: str, message: str):
     recipients = [r for r in recipients if r and r.lower() not in [x.lower() for x in EXCLUDED_EMAILS]]
@@ -43,7 +58,7 @@ def get_requester_info(user: str) -> dict:
 def get_line_manager_info(user: str) -> dict:
     if not user:
         return {"email": None, "name": None}
-    emp = frappe.db.get_value("Employee", {"user_id": user}, ["reports_to", "name"], as_dict=True)
+    emp = frappe.db.get_value("Employee", {"user_id": user, "company": TARGET_COMPANY}, ["reports_to", "name"], as_dict=True)
     if emp and emp.reports_to:
         mgr = frappe.db.get_value("Employee", emp.reports_to, ["user_id", "employee_name"], as_dict=True)
         if mgr and mgr.user_id:
@@ -108,6 +123,8 @@ def get_cost_center_from_items(doc) -> str:
     return "N/A"
 
 def notify_on_mr_submit(doc, method):
+    if not is_target_company_doc(doc):
+        return
     requester = get_requester_info(doc.owner)
     line_mgr = get_line_manager_info(doc.owner)
     cost_center = get_cost_center_from_items(doc)
@@ -132,6 +149,8 @@ def notify_on_mr_submit(doc, method):
         send_email([line_mgr["email"]], f"Material Request {doc.name} Pending Line Manager Approval", msg_mgr)
 
 def notify_on_mr_approval(doc, method):
+    if not is_target_company_doc(doc):
+        return
     requester = get_requester_info(doc.owner)
     rows = [
         ("MAT-ID", doc.name),
@@ -147,6 +166,8 @@ def notify_on_mr_approval(doc, method):
 # ============================================
 
 def notify_on_rfq_submit(doc, method):
+    if not is_target_company_doc(doc):
+        return
     mr_name = get_linked_mr_from_items(doc)
     mr_owner = frappe.db.get_value("Material Request", mr_name, "owner") if mr_name else None
     requester = get_requester_info(mr_owner or doc.owner)
@@ -175,6 +196,8 @@ def notify_on_rfq_submit(doc, method):
 # ============================================
 
 def notify_on_sq_creation(doc, method):
+    if not is_target_company_doc(doc):
+        return
     mr_name = get_linked_mr_from_items(doc)
     rfq_name = get_linked_rfq_from_sq(doc.name)
     mr_owner = frappe.db.get_value("Material Request", mr_name, "owner") if mr_name else None
@@ -200,6 +223,8 @@ def notify_on_sq_creation(doc, method):
     send_email(recipients, f"Supplier Quotation {doc.name} Created", msg)
 
 def notify_on_sq_submit(doc, method):
+    if not is_target_company_doc(doc):
+        return
     mr_name = get_linked_mr_from_items(doc)
     rfq_name = get_linked_rfq_from_sq(doc.name)
     mr_owner = frappe.db.get_value("Material Request", mr_name, "owner") if mr_name else None
@@ -225,6 +250,8 @@ def notify_on_sq_submit(doc, method):
         send_email([email], f"Supplier Quotation {doc.name} Pending Business Manager Approval", msg)
 
 def notify_on_sq_approval(doc, method):
+    if not is_target_company_doc(doc):
+        return
     mr_name = get_linked_mr_from_items(doc)
     mr_owner = frappe.db.get_value("Material Request", mr_name, "owner") if mr_name else None
     requester = get_requester_info(mr_owner or doc.owner)
@@ -242,6 +269,8 @@ def notify_on_sq_approval(doc, method):
 # ============================================
 
 def notify_on_po_creation(doc, method):
+    if not is_target_company_doc(doc):
+        return
     sq_name = doc.ref_sq
     mr_name = None
     rfq_name = None
@@ -273,6 +302,8 @@ def notify_on_po_creation(doc, method):
     send_email(recipients, f"New Purchase Order {doc.name} Created", msg)
 
 def notify_on_po_approval(doc, method):
+    if not is_target_company_doc(doc):
+        return
     sq_name = doc.ref_sq
     mr_name = None
     rfq_name = None
@@ -327,6 +358,8 @@ def notify_on_po_approval(doc, method):
 # ============================================
 
 def notify_on_payment_request_creation(doc, method):
+    if not is_target_company_doc(doc):
+        return
     po_name = get_linked_po_from_pr(doc)
     sq_name = get_linked_sq_from_po(po_name) if po_name else None
     mr_name = None
@@ -360,6 +393,8 @@ def notify_on_payment_request_creation(doc, method):
     send_email(recipients, f"New Payment Request {doc.name} Created", msg)
 
 def notify_on_payment_request_approval(doc, method):
+    if not is_target_company_doc(doc):
+        return
     po_name = get_linked_po_from_pr(doc)
     sq_name = get_linked_sq_from_po(po_name) if po_name else None
     mr_name = None
@@ -468,7 +503,8 @@ def escalate_stuck_approvals():
                 filters={
                     "workflow_state": ["in", states],
                     "modified": ("<=", cutoff),
-                    "docstatus": 0
+                    "docstatus": 0,
+                    "company": TARGET_COMPANY
                 },
                 fields=["name", "owner", "workflow_state", "creation", "modified"]
             )
