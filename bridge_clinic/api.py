@@ -2,7 +2,8 @@ import frappe
 from frappe import _
 from frappe.utils import nowdate
 from frappe.model.workflow import get_workflow_safe_globals
-from frappe.utils import add_days, getdate
+from frappe.utils import getdate
+from erpnext.accounts.party import get_due_date
 
 WHT_ACCOUNTS = [
     "4102 - WHT Payable - State - BCL",
@@ -436,10 +437,15 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
 
     posting_date = getdate(doc.posting_date)
     bill_date = posting_date
-    due_date = add_days(posting_date, 1)
+    due_date = clamp_due_date(
+        get_due_date(posting_date, "Supplier", po.supplier, po.company, bill_date),
+        posting_date,
+        bill_date,
+    )
 
     pi.supplier = po.supplier
     pi.company = po.company
+    pi.set_posting_time = 1
     pi.posting_date = posting_date
     pi.bill_date = bill_date
     pi.due_date = due_date
@@ -462,23 +468,11 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
             "po_detail": getattr(item, "po_detail", None)
         })
 
-    # Copy taxes into PI
+    # Copy taxes into PI (WHT rows forced to Deduct so they reduce the total)
     for tax in doc.taxes or []:
-        pi.append("taxes", {
-            "charge_type": tax.charge_type,
-            "account_head": tax.account_head,
-            "rate": tax.rate,
-            "tax_amount": tax.tax_amount,
-            "description": tax.description,
-            "cost_center": tax.cost_center,
-            "included_in_print_rate": tax.included_in_print_rate,
-            "base_tax_amount": tax.base_tax_amount
-        })
+        pi.append("taxes", map_pr_tax_to_pi(tax))
 
     pi.insert(ignore_permissions=True)
-    pi.db_set("posting_date", posting_date)
-    pi.db_set("bill_date", bill_date)
-    pi.db_set("due_date", due_date)
     
 
 
@@ -515,7 +509,7 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
 
     # --- Step 5: Extra PRs for eligible PR tax rows ---
     for tax in doc.taxes or []:
-        if tax.account_head in ["4102 - WHT Payable - State - BCL", "4103 - WHT Payable - FGN - BCL"]:
+        if tax.account_head in WHT_ACCOUNTS:
             # Avoid duplicates
             exists_tax_pr = frappe.db.exists("Payment Request", {
                 "reference_doctype": "Purchase Receipt",
