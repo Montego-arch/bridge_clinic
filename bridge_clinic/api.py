@@ -4,6 +4,50 @@ from frappe.utils import nowdate
 from frappe.model.workflow import get_workflow_safe_globals
 from frappe.utils import add_days, getdate
 
+WHT_ACCOUNTS = [
+    "4102 - WHT Payable - State - BCL",
+    "4103 - WHT Payable - FGN - BCL",
+]
+
+
+def map_pr_tax_to_pi(tax, wht_accounts=None):
+    """Build a Purchase Invoice tax-row dict from a Purchase Receipt tax row.
+
+    Preserves the Add/Deduct flag and category, and forces 'Deduct' for the
+    configured withholding-tax accounts so WHT reduces the invoice total
+    instead of inflating it.
+    """
+    if wht_accounts is None:
+        wht_accounts = WHT_ACCOUNTS
+
+    add_deduct = getattr(tax, "add_deduct_tax", None) or "Add"
+    if getattr(tax, "account_head", None) in wht_accounts:
+        add_deduct = "Deduct"
+
+    row = {
+        "charge_type": getattr(tax, "charge_type", None),
+        "account_head": getattr(tax, "account_head", None),
+        "rate": getattr(tax, "rate", None),
+        "tax_amount": getattr(tax, "tax_amount", None),
+        "description": getattr(tax, "description", None),
+        "cost_center": getattr(tax, "cost_center", None),
+        "included_in_print_rate": getattr(tax, "included_in_print_rate", None),
+        "base_tax_amount": getattr(tax, "base_tax_amount", None),
+        "add_deduct_tax": add_deduct,
+    }
+
+    category = getattr(tax, "category", None)
+    if category:
+        row["category"] = category
+
+    return row
+
+
+def clamp_due_date(due_date, posting_date, bill_date):
+    """Ensure the due date is never before the posting or supplier-invoice date."""
+    return max(getdate(due_date), getdate(posting_date), getdate(bill_date))
+
+
 def create_payment_request_for_expense(doc, method):
     """
     When an Expense Claim is submitted, create a draft Payment Request.
