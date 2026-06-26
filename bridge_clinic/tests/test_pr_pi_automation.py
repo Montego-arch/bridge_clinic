@@ -20,18 +20,34 @@ from bridge_clinic.api import (
 
 class TestPrPiTaxMapping(FrappeTestCase):
     def test_wht_account_is_forced_to_deduct(self):
-        # WHT row entered as "Add" on the receipt must become "Deduct" on the invoice
+        # WHT row entered as "Add" on the receipt must become "Deduct" on the invoice.
+        # category="Total" is included so the Deduct multiplier actually fires in ERPNext.
         tax = _dict(
             account_head=WHT_ACCOUNTS[0],
             charge_type="Actual",
             rate=0,
             tax_amount=500,
             add_deduct_tax="Add",
+            category="Total",
         )
         result = map_pr_tax_to_pi(tax)
         self.assertEqual(result["add_deduct_tax"], "Deduct")
         self.assertEqual(result["account_head"], WHT_ACCOUNTS[0])
         self.assertEqual(result["tax_amount"], 500)
+        self.assertEqual(result["category"], "Total")
+
+    def test_second_wht_account_is_forced_to_deduct(self):
+        # Guards against a typo / omission in the second WHT_ACCOUNTS constant entry.
+        tax = _dict(
+            account_head=WHT_ACCOUNTS[1],
+            charge_type="Actual",
+            rate=0,
+            tax_amount=200,
+            add_deduct_tax="Add",
+            category="Total",
+        )
+        result = map_pr_tax_to_pi(tax)
+        self.assertEqual(result["add_deduct_tax"], "Deduct")
 
     def test_non_wht_deduct_flag_is_preserved(self):
         tax = _dict(
@@ -43,6 +59,10 @@ class TestPrPiTaxMapping(FrappeTestCase):
         )
         result = map_pr_tax_to_pi(tax)
         self.assertEqual(result["add_deduct_tax"], "Deduct")
+        self.assertEqual(result["account_head"], "2110 - VAT - BCL")
+        self.assertEqual(result["charge_type"], "On Net Total")
+        self.assertEqual(result["rate"], 7.5)
+        self.assertEqual(result["tax_amount"], 750)
 
     def test_non_wht_without_flag_defaults_to_add(self):
         tax = _dict(
