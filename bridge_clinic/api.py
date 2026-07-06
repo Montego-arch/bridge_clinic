@@ -450,7 +450,14 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
     pi.bill_date = bill_date
     pi.due_date = due_date
     pi.bill_no = doc.name
-    pi.cost_center = po.cost_center
+    # Cost center must come from the Purchase Receipt the user fills, falling
+    # back to the PO and then the company default. Sourcing it only from
+    # po.cost_center meant a blank PO cost center produced a PI whose GL entries
+    # for P&L accounts (e.g. COS - Consumables) failed validation on submit,
+    # rolling back the whole Purchase Receipt submission.
+    company_cost_center = frappe.get_cached_value("Company", po.company, "cost_center")
+    pi_cost_center = doc.cost_center or po.cost_center or company_cost_center
+    pi.cost_center = pi_cost_center
     pi.purchase_receipt = doc.name
     pi.purchase_order = po.name
     pi.currency = po.currency
@@ -463,6 +470,7 @@ def handle_purchase_receipt_on_submit_for_draft(doc, method):
             "qty": item.qty,
             "rate": item.rate,
             "amount": item.amount,
+            "cost_center": item.cost_center or pi_cost_center,
             "purchase_receipt": doc.name,
             "purchase_order": item.purchase_order,
             "po_detail": getattr(item, "po_detail", None)
